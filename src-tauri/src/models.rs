@@ -25,6 +25,8 @@ pub struct Settings {
     pub enabled_agent_ids: Option<Vec<String>>,
     #[serde(default)]
     pub custom_agents: Option<Vec<CustomAgent>>,
+    #[serde(default)]
+    pub agent_order: Option<Vec<String>>,
 }
 
 impl Default for Settings {
@@ -37,6 +39,7 @@ impl Default for Settings {
             language: "zh-CN".to_string(),
             enabled_agent_ids: None,
             custom_agents: None,
+            agent_order: None,
         }
     }
 }

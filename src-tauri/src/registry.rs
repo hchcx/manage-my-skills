@@ -388,7 +388,19 @@ pub fn detect_agents(settings: &Settings, include_orphaned: bool) -> Vec<AgentRe
         })
         .collect::<Vec<_>>();
 
-    records.sort_by_key(|agent| (agent.priority, agent.label.to_ascii_lowercase()));
+    if let Some(ref order) = settings.agent_order {
+        let order_map = order
+            .iter()
+            .enumerate()
+            .map(|(index, id)| (id.clone(), index))
+            .collect::<std::collections::BTreeMap<String, usize>>();
+        records.sort_by_key(|agent| {
+            let order_idx = order_map.get(&agent.id).cloned().unwrap_or(usize::MAX);
+            (order_idx, agent.priority, agent.label.to_ascii_lowercase())
+        });
+    } else {
+        records.sort_by_key(|agent| (agent.priority, agent.label.to_ascii_lowercase()));
+    }
     records
 }
 

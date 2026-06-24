@@ -1,4 +1,4 @@
-import { Check, XCircle, Trash2, Plus, FolderOpen, Upload } from "lucide-react";
+import { Check, XCircle, Trash2, Plus, FolderOpen, Upload, GripVertical } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { AgentIcon, StatusPill } from "./shared";
 import { agentSignalSummary, agentSkillCount } from "../lib/skillUtils";
@@ -25,6 +25,7 @@ export function SettingsSheet({
   onSave: () => void;
 }) {
   const [settingsTab, setSettingsTab] = useState<"data" | "agents">("data");
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const [newAgentId, setNewAgentId] = useState("");
   const [newAgentLabel, setNewAgentLabel] = useState("");
@@ -107,6 +108,42 @@ export function SettingsSheet({
     }
   }
 
+  // Sort based on settings.agentOrder
+  if (settings.agentOrder) {
+    const orderMap = new Map(settings.agentOrder.map((id, index) => [id, index]));
+    displayAgents.sort((a, b) => {
+      const idxA = orderMap.has(a.id) ? orderMap.get(a.id)! : 9999;
+      const idxB = orderMap.has(b.id) ? orderMap.get(b.id)! : 9999;
+      return idxA - idxB;
+    });
+  }
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, hoverIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === hoverIndex) return;
+
+    const reordered = [...displayAgents];
+    const [removed] = reordered.splice(draggedIndex, 1);
+    reordered.splice(hoverIndex, 0, removed);
+
+    setDraggedIndex(hoverIndex);
+
+    const newOrder = reordered.map(a => a.id);
+    onChange({
+      ...settings,
+      agentOrder: newOrder
+    });
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
   // Close on backdrop click (blank area) and Esc
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
@@ -175,7 +212,7 @@ export function SettingsSheet({
             <div className="settings-agents-pane" style={{ gap: "20px" }}>
               {displayAgents.length > 0 ? (
                 <div className="settings-agent-list" style={{ maxHeight: "300px", overflowY: "auto", paddingRight: "4px" }}>
-                  {displayAgents.map((agent) => {
+                  {displayAgents.map((agent, index) => {
                     const count = agentSkillCount(agent.id, skillsForCount);
                     const signal = agentSignalSummary(agent);
                     
@@ -204,25 +241,50 @@ export function SettingsSheet({
                       if (confirm(`确定要删除自定义 Agent "${agent.label}" 吗？`)) {
                         const newCustom = (settings.customAgents || []).filter(ca => ca.id !== agent.id);
                         const newEnabled = (settings.enabledAgentIds || displayAgents.map(a => a.id)).filter(id => id !== agent.id);
+                        const newOrder = (settings.agentOrder || []).filter(id => id !== agent.id);
                         onChange({
                           ...settings,
                           customAgents: newCustom,
-                          enabledAgentIds: newEnabled
+                          enabledAgentIds: newEnabled,
+                          agentOrder: newOrder
                         });
                       }
                     };
+
+                    const isDraggingThis = index === draggedIndex;
 
                     return (
                       <div 
                         className="settings-agent-row rich" 
                         key={agent.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, index)}
+                        onDragOver={(e) => handleDragOver(e, index)}
+                        onDragEnd={handleDragEnd}
                         style={{ 
-                          gridTemplateColumns: "24px 36px minmax(0, 1fr) auto auto 32px",
+                          gridTemplateColumns: "20px 24px 36px minmax(0, 1fr) auto auto 32px",
                           gap: "12px",
-                          opacity: isEnabled ? 1 : 0.65,
-                          transition: "opacity 0.2s"
+                          opacity: isDraggingThis ? 0.35 : isEnabled ? 1 : 0.65,
+                          background: isDraggingThis ? "rgba(0,0,0,0.03)" : "var(--card-bg, #ffffff)",
+                          border: isDraggingThis ? "1px dashed #cbd5e1" : "1px solid transparent",
+                          borderRadius: "6px",
+                          transition: "opacity 0.2s, background-color 0.2s",
+                          cursor: "grab"
                         }}
                       >
+                        <div 
+                          style={{ 
+                            display: "flex", 
+                            alignItems: "center", 
+                            justifyContent: "center", 
+                            color: "#9ca3af",
+                            cursor: "grab"
+                          }}
+                          title="拖拽排序"
+                        >
+                          <GripVertical size={14} />
+                        </div>
+
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <input
                             type="checkbox"

@@ -6,6 +6,7 @@ export type Settings = {
   language: string;
   enabledAgentIds?: string[];
   customAgents?: CustomAgent[];
+  agentOrder?: string[];
 };
 
 export type CustomRoot = {
