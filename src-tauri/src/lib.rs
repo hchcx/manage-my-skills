@@ -29,7 +29,8 @@ pub fn run() {
             commands::preview_batch_quick_migration,
             commands::apply_sync_plan,
             commands::toggle_agent_skill,
-            commands::fix_skill_folder_name
+            commands::fix_skill_folder_name,
+            commands::create_skill_md
         ])
         .run(tauri::generate_context!())
         .expect("error while running Manage My skills");

@@ -220,6 +220,19 @@ export function SkillsView({
     }
   };
 
+  const handleCreateSkillMd = async (entryPath: string, skill: SkillRecord) => {
+    if (!entryPath) return;
+    try {
+      await invoke("create_skill_md", {
+        entryPath,
+        slug: skill.slug
+      });
+      onRefresh(true);
+    } catch (err) {
+      alert(`创建 SKILL.md 失败:\n${err}`);
+    }
+  };
+
   const handleFixAllNames = async () => {
     if (nameMismatchedInstallations.length === 0) return;
     if (fixingAll) return;
@@ -641,7 +654,13 @@ export function SkillsView({
                         updateCheck={skillUpdateChecks[skill.id]}
                         updating={updatingSkillIds.has(skill.id)}
                         onUpdate={() => onUpdateSkill(skill)}
-                        onResolveIssue={(issue) => handleFixFolderName(issue.path || "", skill)}
+                        onResolveIssue={async (issue) => {
+                          if (issue.code === "name-mismatch") {
+                            await handleFixFolderName(issue.path || "", skill);
+                          } else if (issue.code === "missing-skill-md") {
+                            await handleCreateSkillMd(issue.path || "", skill);
+                          }
+                        }}
                       />
                     )}
                   </Fragment>

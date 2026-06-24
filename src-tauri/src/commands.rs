@@ -640,3 +640,32 @@ pub fn fix_skill_folder_name(
     Ok(())
 }
 
+#[tauri::command]
+pub fn create_skill_md(entry_path: String, slug: String) -> Result<(), String> {
+    let dir = Path::new(&entry_path);
+    if !dir.exists() {
+        return Err(format!("目录 {} 不存在", entry_path));
+    }
+    let skill_md_path = dir.join("SKILL.md");
+    if skill_md_path.exists() {
+        return Ok(());
+    }
+
+    let default_content = format!(
+        r#"---
+name: {}
+description: Workspace skill for {}.
+---
+
+# {}
+This is a workspace skill. Add your custom instructions and tools here.
+"#,
+        slug, slug, slug
+    );
+
+    std::fs::write(&skill_md_path, default_content)
+        .map_err(|e| format!("无法写入 SKILL.md 文件: {}", e))?;
+
+    Ok(())
+}
+

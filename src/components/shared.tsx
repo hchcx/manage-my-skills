@@ -71,7 +71,7 @@ export function IssueList({
             <strong>{issue.message}</strong>
             <small>{issueActionHint(issue)}</small>
           </span>
-          {onResolve && issue.code === "name-mismatch" && (
+          {onResolve && (issue.code === "name-mismatch" || issue.code === "missing-skill-md") && (
             <button
               className="secondary-button compact"
               onClick={(e) => {
@@ -81,7 +81,7 @@ export function IssueList({
               style={{ marginLeft: "12px", padding: "4px 10px", fontSize: "12px", height: "26px" }}
               type="button"
             >
-              修复名称
+              {issue.code === "name-mismatch" ? "修复名称" : "创建 SKILL.md"}
             </button>
           )}
         </div>
