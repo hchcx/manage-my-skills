@@ -71,6 +71,42 @@ export function SettingsSheet({
   const installedCount = agents.length;
   const skillsForCount = skills.length ? skills : (inventory?.skills ?? []);
 
+  // Synthesize displayAgents so newly added custom agents show up in settings list immediately
+  const displayAgents: AgentRecord[] = [...(agents || [])];
+  if (settings.customAgents) {
+    for (const ca of settings.customAgents) {
+      const idx = displayAgents.findIndex(a => a.id === ca.id);
+      if (idx !== -1) {
+        displayAgents[idx] = {
+          ...displayAgents[idx],
+          label: ca.label,
+          globalRoots: ca.globalRoots,
+          projectRoots: ca.projectRoots,
+          iconData: ca.iconData,
+        };
+      } else {
+        displayAgents.push({
+          id: ca.id,
+          label: ca.label,
+          globalRoots: ca.globalRoots,
+          projectRoots: ca.projectRoots,
+          activeSignals: [],
+          cliNames: [],
+          appPaths: [],
+          symlinkSupport: true,
+          priority: 200,
+          installed: false,
+          enabled: settings.enabledAgentIds ? settings.enabledAgentIds.includes(ca.id) : true,
+          status: "not-installed",
+          detectionSources: [],
+          skillRoots: [],
+          skillEntryCount: 0,
+          iconData: ca.iconData,
+        });
+      }
+    }
+  }
+
   // Close on backdrop click (blank area) and Esc
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
@@ -137,9 +173,9 @@ export function SettingsSheet({
 
           {settingsTab === "agents" && (
             <div className="settings-agents-pane" style={{ gap: "20px" }}>
-              {agents.length > 0 ? (
+              {displayAgents.length > 0 ? (
                 <div className="settings-agent-list" style={{ maxHeight: "300px", overflowY: "auto", paddingRight: "4px" }}>
-                  {agents.map((agent) => {
+                  {displayAgents.map((agent) => {
                     const count = agentSkillCount(agent.id, skillsForCount);
                     const signal = agentSignalSummary(agent);
                     
@@ -150,7 +186,7 @@ export function SettingsSheet({
                     const isCustom = settings.customAgents?.some(ca => ca.id === agent.id);
 
                     const handleToggle = (checked: boolean) => {
-                      const currentEnabled = settings.enabledAgentIds || agents.map(a => a.id);
+                      const currentEnabled = settings.enabledAgentIds || displayAgents.map(a => a.id);
                       let newEnabled: string[];
                       if (checked) {
                         newEnabled = [...currentEnabled, agent.id];
@@ -167,7 +203,7 @@ export function SettingsSheet({
                       e.stopPropagation();
                       if (confirm(`确定要删除自定义 Agent "${agent.label}" 吗？`)) {
                         const newCustom = (settings.customAgents || []).filter(ca => ca.id !== agent.id);
-                        const newEnabled = (settings.enabledAgentIds || agents.map(a => a.id)).filter(id => id !== agent.id);
+                        const newEnabled = (settings.enabledAgentIds || displayAgents.map(a => a.id)).filter(id => id !== agent.id);
                         onChange({
                           ...settings,
                           customAgents: newCustom,
@@ -389,7 +425,7 @@ export function SettingsSheet({
                           alert("标识 ID、显示名称和全局路径不能为空");
                           return;
                         }
-                        const exists = agents.some((a) => a.id === newAgentId);
+                        const exists = displayAgents.some((a) => a.id === newAgentId);
                         if (exists) {
                           alert(`ID "${newAgentId}" 已经存在，请输入其他标识 ID`);
                           return;
@@ -402,7 +438,7 @@ export function SettingsSheet({
                           iconData: newAgentIcon || undefined,
                         };
                         const updatedCustomAgents = [...(settings.customAgents || []), newCustomAgent];
-                        const updatedEnabledAgentIds = [...(settings.enabledAgentIds || agents.map(a => a.id)), newAgentId.trim()];
+                        const updatedEnabledAgentIds = [...(settings.enabledAgentIds || displayAgents.map(a => a.id)), newAgentId.trim()];
                         onChange({
                           ...settings,
                           customAgents: updatedCustomAgents,
