@@ -28,7 +28,7 @@ pub fn save_settings(app: AppHandle, settings: Settings) -> Result<Settings, Str
 }
 
 #[tauri::command]
-pub fn scan_inventory(
+pub async fn scan_inventory(
     app: AppHandle,
     options: Option<ScanOptions>,
 ) -> Result<InventorySnapshot, String> {
@@ -44,12 +44,12 @@ pub fn scan_inventory(
 }
 
 #[tauri::command]
-pub fn read_inventory_cache(app: AppHandle) -> Result<Option<InventorySnapshot>, String> {
+pub async fn read_inventory_cache(app: AppHandle) -> Result<Option<InventorySnapshot>, String> {
     scanner::read_inventory_cache(&app)
 }
 
 #[tauri::command]
-pub fn discover_project_workspaces(
+pub async fn discover_project_workspaces(
     app: AppHandle,
     base_path: String,
 ) -> Result<Vec<ProjectWorkspaceCandidate>, String> {

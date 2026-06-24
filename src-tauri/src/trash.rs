@@ -90,7 +90,7 @@ fn extract_skill_name(skill_dir: &Path) -> Option<String> {
 }
 
 #[tauri::command]
-pub fn delete_skill(app: AppHandle, path: String) -> Result<TrashItem, String> {
+pub async fn delete_skill(app: AppHandle, path: String) -> Result<TrashItem, String> {
     let source_path = PathBuf::from(&path);
     if !source_path.exists() {
         return Err(format!("Skill path does not exist: {}", path));
@@ -123,7 +123,7 @@ pub fn delete_skill(app: AppHandle, path: String) -> Result<TrashItem, String> {
 }
 
 #[tauri::command]
-pub fn get_trash_items(app: AppHandle) -> Result<Vec<TrashItem>, String> {
+pub async fn get_trash_items(app: AppHandle) -> Result<Vec<TrashItem>, String> {
     let index = load_trash_index(&app)?;
     let mut items = index.items;
     items.sort_by(|a, b| b.deleted_at.cmp(&a.deleted_at));
@@ -131,7 +131,7 @@ pub fn get_trash_items(app: AppHandle) -> Result<Vec<TrashItem>, String> {
 }
 
 #[tauri::command]
-pub fn restore_skill(app: AppHandle, id: String) -> Result<(), String> {
+pub async fn restore_skill(app: AppHandle, id: String) -> Result<(), String> {
     let mut index = load_trash_index(&app)?;
     let item_idx = index.items.iter().position(|item| item.id == id)
         .ok_or_else(|| format!("Skill not found in recycle bin with id: {}", id))?;
@@ -163,7 +163,7 @@ pub fn restore_skill(app: AppHandle, id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn delete_trash_item_permanently(app: AppHandle, id: String) -> Result<(), String> {
+pub async fn delete_trash_item_permanently(app: AppHandle, id: String) -> Result<(), String> {
     let mut index = load_trash_index(&app)?;
     let item_idx = index.items.iter().position(|item| item.id == id)
         .ok_or_else(|| format!("Skill not found in recycle bin: {}", id))?;
@@ -180,7 +180,7 @@ pub fn delete_trash_item_permanently(app: AppHandle, id: String) -> Result<(), S
 }
 
 #[tauri::command]
-pub fn empty_trash(app: AppHandle) -> Result<(), String> {
+pub async fn empty_trash(app: AppHandle) -> Result<(), String> {
     let mut index = load_trash_index(&app)?;
     for item in &index.items {
         let trash_item_dir = trash_dir(&app)?.join(&item.id);
