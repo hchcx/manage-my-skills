@@ -1,11 +1,11 @@
 {
-  "version": "0.1.0",
+  "version": "0.1.1",
   "notes": "1. 接入Tauri v2官方自动更新功能\n2. 清理了Skill列表里冗余的设置和删除按钮",
   "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY5NDA5RDk1M0E4NUUzOUUKUldTZTQ0VTZsWjFBYVdxUUFiRzBxdUFPNDZ2Zy9SL3lYMlNpSmZEclBBVndTYnZXaDBYV3JMTVQK",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTZTQ0VTZsWjFBYWYxVnpnbzd5V1dpaDh3VmVHQmwrdTVkdHg0TjNzUkhONG5UaExUMjcwOTk3U3JHdmR5VEUwc0V6MDltSVdSQU51Q3h3U0NvdWhUUFpiR1VUbG53b1FBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMjkxNTM4CWZpbGU6TWFuYWdlIE15IHNraWxsc18wLjEuMF94NjQtc2V0dXAuZXhlCjNSWVowNkwrMk1zWC9IOU5UNE5TeWI3Z2JjMmpMRW5xaTJJVTlYMDBFZzZoMHB1Skxid3lnWlJqcThlbnRNSlZHbnNGakcrTG15NWRXK1VCM25HaEJ3PT0K",
-      "url": "https://github.com/hchcx/manage-my-skills/releases/download/v0.1.0/Manage%20My%20skills_0.1.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTZTQ0VTZsWjFBYVl5S1NwRVZpQUlFTURuUUtwZUJiZUVsK0lCVXl1eHp5Rm1MQUQ4N2t6NHNhOWJNclI3K1RBeXRIWE1MWEtPSTMyNUhJa2h6T2R3dEpTVFlTbkRsMUFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMjkxNzU0CWZpbGU6TWFuYWdlIE15IHNraWxsc18wLjEuMV94NjQtc2V0dXAuZXhlCktKeXduVmhQSUlUSDc5eWF2YW1jallxaVRJdXRHSXY3M2IvM2szd0krUmZZakZHV3ZFa0pXZTJNZ0h0V0hzcFFveTlKK3gwU0oyam55U3l1b1QvTER3PT0K",
+      "url": "https://github.com/hchcx/manage-my-skills/releases/download/v0.1.1/Manage%20My%20skills_0.1.1_x64-setup.exe"
     }
   }
 }
