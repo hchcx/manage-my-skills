@@ -187,8 +187,10 @@ export default function App() {
     }
   }
 
-  async function refreshInventory() {
-    setBusy("扫描本机 Agent 与 Skills");
+  async function refreshInventory(silent = false) {
+    if (!silent) {
+      setBusy("扫描本机 Agent 与 Skills");
+    }
     setError(null);
     if (!isTauriRuntime()) {
       setInventory(demoInventory);
@@ -196,8 +198,12 @@ export default function App() {
       setSkillUpdateChecks({});
       setHasScanned(true);
       setPreviouslyScanned(true);
-      setToast("重新扫描完成，已更新技能列表");
-      setBusy("");
+      if (!silent) {
+        setToast("重新扫描完成，已更新技能列表");
+      }
+      if (!silent) {
+        setBusy("");
+      }
       return;
     }
     try {
@@ -220,11 +226,15 @@ export default function App() {
         const valid = new Set(next.skills.map((skill) => skill.id));
         return new Set([...current].filter((id) => valid.has(id)));
       });
-      setToast("重新扫描完成，已更新技能列表");
+      if (!silent) {
+        setToast("重新扫描完成，已更新技能列表");
+      }
     } catch (reason) {
       setError(String(reason));
     } finally {
-      setBusy("");
+      if (!silent) {
+        setBusy("");
+      }
     }
   }
 
@@ -711,7 +721,7 @@ export default function App() {
             onAdoptSelected={() => openSelectedSkillsSync("managed")}
             onQuickSyncSelected={() => openSelectedSkillsSync("quick")}
             onClearSelection={clearSelectedSkills}
-            onRefresh={() => void refreshInventory()}
+            onRefresh={(silent) => void refreshInventory(silent)}
             onAddProject={() => void addProjectWorkspace()}
             onDiscoverProjects={() => void discoverProjectWorkspaces()}
             onCloseDiscovery={closeProjectDiscovery}

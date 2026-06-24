@@ -79,7 +79,7 @@ export function SkillsView({
   onAdoptSelected: () => void;
   onQuickSyncSelected: () => void;
   onClearSelection: () => void;
-  onRefresh: () => void;
+  onRefresh: (silent?: boolean) => void;
   onCheckUpdates: () => void;
   onAddProject: () => void;
   onDiscoverProjects: () => void;
@@ -192,7 +192,7 @@ export function SkillsView({
         active,
         sourcePath
       });
-      onRefresh();
+      onRefresh(true);
     } catch (err) {
       alert(`快捷同步操作失败:\n${err}`);
     } finally {
@@ -214,7 +214,7 @@ export function SkillsView({
         entryPath,
         expectedName
       });
-      onRefresh();
+      onRefresh(true);
     } catch (err) {
       alert(`修复名称失败:\n${err}`);
     }
@@ -246,7 +246,7 @@ export function SkillsView({
     }
 
     setFixingAll(false);
-    onRefresh();
+    onRefresh(true);
 
     if (failCount > 0) {
       alert(`一键修复完成。\n成功: ${successCount} 个\n失败: ${failCount} 个\n\n失败详情:\n${errors.join("\n")}`);
@@ -414,7 +414,7 @@ export function SkillsView({
             >
               <ArrowUpCircle className={checkingUpdates ? "spin" : ""} size={17} />
             </button>
-            <button className="icon-button plain" disabled={refreshing || checkingUpdates} onClick={onRefresh} title="重新扫描" type="button">
+            <button className="icon-button plain" disabled={refreshing || checkingUpdates} onClick={() => onRefresh()} title="重新扫描" type="button">
               <RefreshCw className={refreshing ? "spin" : ""} size={17} />
             </button>
             <div className="agent-menu-wrap" ref={agentMenuRef}>
