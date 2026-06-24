@@ -319,6 +319,7 @@ pub fn known_agents(settings: &Settings) -> Vec<AgentDefinition> {
                 app_paths: vec![],
                 priority: 200,
                 symlink_support: true,
+                icon_data: ca.icon_data.clone(),
             });
         }
     }
@@ -382,6 +383,7 @@ pub fn detect_agents(settings: &Settings, include_orphaned: bool) -> Vec<AgentRe
                 detection_sources,
                 skill_roots,
                 skill_entry_count,
+                icon_data: definition.icon_data,
             }
         })
         .collect::<Vec<_>>();
@@ -454,6 +456,7 @@ fn agent(
         app_paths: app_paths.iter().map(|path| path.to_string()).collect(),
         priority,
         symlink_support: true,
+        icon_data: None,
     }
 }
 

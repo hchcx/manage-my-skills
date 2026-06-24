@@ -8,6 +8,8 @@ pub struct CustomAgent {
     pub label: String,
     pub global_roots: Vec<String>,
     pub project_roots: Vec<String>,
+    #[serde(default)]
+    pub icon_data: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -69,6 +71,8 @@ pub struct AgentDefinition {
     pub app_paths: Vec<String>,
     pub priority: u16,
     pub symlink_support: bool,
+    #[serde(default)]
+    pub icon_data: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -98,6 +102,8 @@ pub struct AgentRecord {
     pub detection_sources: Vec<AgentDetectionSource>,
     pub skill_roots: Vec<ResolvedRoot>,
     pub skill_entry_count: usize,
+    #[serde(default)]
+    pub icon_data: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

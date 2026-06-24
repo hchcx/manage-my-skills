@@ -2,19 +2,27 @@ import { AlertTriangle } from "lucide-react";
 import type { CSSProperties } from "react";
 import { agentIconAsset } from "../agentIconRegistry";
 import type { AgentRecord, SkillIssue, SkillRecord } from "../types";
+import defaultLogo from "../m-my-skills-logo.png";
 
 export function AgentIcon({ agent }: { agent: AgentRecord }) {
-  const icon = agentIconAsset(agent.id);
-  const fallback = agent.label.slice(0, 2).toUpperCase();
-  const iconStyle = icon?.size ? ({ "--agent-icon-size": `${icon.size}px` } as CSSProperties) : undefined;
+  const iconAsset = agentIconAsset(agent.id);
+  const imgSrc = iconAsset?.src || agent.iconData || defaultLogo;
+  const iconStyle = iconAsset?.size ? ({ "--agent-icon-size": `${iconAsset.size}px` } as CSSProperties) : undefined;
 
   return (
-    <span className={`agent-icon ${agent.installed ? "installed" : ""}`}>
-      {icon ? (
-        <img alt="" aria-hidden="true" src={icon.src} style={iconStyle} />
-      ) : (
-        <em>{fallback}</em>
-      )}
+    <span className={`agent-icon ${agent.installed ? "installed" : ""}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+      <img 
+        alt={agent.label} 
+        aria-hidden="true" 
+        src={imgSrc} 
+        style={{ 
+          width: "100%", 
+          height: "100%", 
+          objectFit: "contain",
+          borderRadius: "4px",
+          ...iconStyle 
+        }} 
+      />
     </span>
   );
 }

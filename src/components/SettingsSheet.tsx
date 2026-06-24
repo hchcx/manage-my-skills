@@ -1,8 +1,11 @@
-import { Check, XCircle, Trash2, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check, XCircle, Trash2, Plus, FolderOpen, Upload } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
 import { AgentIcon, StatusPill } from "./shared";
 import { agentSignalSummary, agentSkillCount } from "../lib/skillUtils";
 import type { AgentRecord, InventorySnapshot, Settings as AppSettings, SkillRecord } from "../types";
+import { open } from "@tauri-apps/plugin-dialog";
+import { isTauriRuntime } from "../lib/runtime";
+import defaultLogo from "../m-my-skills-logo.png";
 
 export function SettingsSheet({
   settings,
@@ -27,6 +30,43 @@ export function SettingsSheet({
   const [newAgentLabel, setNewAgentLabel] = useState("");
   const [newGlobalRoot, setNewGlobalRoot] = useState("");
   const [newProjectRoot, setNewProjectRoot] = useState("");
+  const [newAgentIcon, setNewAgentIcon] = useState("");
+  const iconInputRef = useRef<HTMLInputElement>(null);
+
+  const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1024 * 1024) {
+        alert("图片大小不能超过 1MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        setNewAgentIcon(base64);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSelectGlobalRoot = async () => {
+    if (isTauriRuntime()) {
+      try {
+        const selected = await open({
+          directory: true,
+          multiple: false,
+          title: "选择全局 Skills 目录绝对路径"
+        });
+        if (selected && typeof selected === "string") {
+          setNewGlobalRoot(selected);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      alert("当前不是 Tauri 运行环境，无法调用文件夹选择器，请手动输入。");
+    }
+  };
 
   const installedCount = agents.length;
   const skillsForCount = skills.length ? skills : (inventory?.skills ?? []);
@@ -222,38 +262,114 @@ export function SettingsSheet({
                   添加自定义 Agent
                 </h3>
                 <div style={{ display: "grid", gap: "12px" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                    <label className="field" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: "600", color: "rgba(23, 25, 28, 0.6)" }}>标识 ID (唯一，仅限英文/数字/中划线)</span>
-                      <input
-                        type="text"
-                        placeholder="例如 my-copilot"
-                        value={newAgentId}
-                        onChange={(e) => setNewAgentId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                        style={{ height: "34px", fontSize: "12px", padding: "0 8px" }}
+                  <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+                    <div
+                      onClick={() => iconInputRef.current?.click()}
+                      style={{
+                        width: "68px",
+                        height: "68px",
+                        borderRadius: "8px",
+                        border: "1px dashed rgba(24, 26, 29, 0.15)",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        overflow: "hidden",
+                        background: "rgba(24, 26, 29, 0.02)",
+                        position: "relative",
+                      }}
+                      title="点击上传自定义 Agent 图标 (可选)"
+                    >
+                      <img
+                        src={newAgentIcon || defaultLogo}
+                        alt="Agent Logo"
+                        style={{ width: "100%", height: "100%", objectFit: "contain", padding: "4px" }}
                       />
-                    </label>
-                    <label className="field" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: "600", color: "rgba(23, 25, 28, 0.6)" }}>显示名称</span>
-                      <input
-                        type="text"
-                        placeholder="例如 My Copilot"
-                        value={newAgentLabel}
-                        onChange={(e) => setNewAgentLabel(e.target.value)}
-                        style={{ height: "34px", fontSize: "12px", padding: "0 8px" }}
-                      />
-                    </label>
-                  </div>
-                  <label className="field" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    <span style={{ fontSize: "11px", fontWeight: "600", color: "rgba(23, 25, 28, 0.6)" }}>全局 Skills 目录绝对路径</span>
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          background: "rgba(24, 26, 29, 0.6)",
+                          color: "#fff",
+                          fontSize: "9px",
+                          textAlign: "center",
+                          padding: "2px 0",
+                          fontWeight: "500"
+                        }}
+                      >
+                        上传图标
+                      </div>
+                    </div>
                     <input
-                      type="text"
-                      placeholder="例如 E:\A_project\my-copilot\skills"
-                      value={newGlobalRoot}
-                      onChange={(e) => setNewGlobalRoot(e.target.value)}
-                      style={{ height: "34px", fontSize: "12px", padding: "0 8px" }}
+                      type="file"
+                      ref={iconInputRef}
+                      onChange={handleIconChange}
+                      accept="image/*"
+                      style={{ display: "none" }}
                     />
-                  </label>
+                    
+                    <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <label className="field" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <span style={{ fontSize: "11px", fontWeight: "600", color: "rgba(23, 25, 28, 0.6)" }}>标识 ID (唯一，仅限英文/数字/中划线)</span>
+                        <input
+                          type="text"
+                          placeholder="例如 my-copilot"
+                          value={newAgentId}
+                          onChange={(e) => setNewAgentId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                          style={{ height: "34px", fontSize: "12px", padding: "0 8px" }}
+                        />
+                      </label>
+                      <label className="field" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <span style={{ fontSize: "11px", fontWeight: "600", color: "rgba(23, 25, 28, 0.6)" }}>显示名称</span>
+                        <input
+                          type="text"
+                          placeholder="例如 My Copilot"
+                          value={newAgentLabel}
+                          onChange={(e) => setNewAgentLabel(e.target.value)}
+                          style={{ height: "34px", fontSize: "12px", padding: "0 8px" }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
+                    <label className="field" style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: "600", color: "rgba(23, 25, 28, 0.6)" }}>
+                        全局 Skills 目录绝对路径 (支持 ~ 缩写，Windows 如 C:\Users\用户名\.codex\skills，macOS 如 ~/.codex/skills)
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="输入绝对路径，或点击右侧浏览选择"
+                        value={newGlobalRoot}
+                        onChange={(e) => setNewGlobalRoot(e.target.value)}
+                        style={{ height: "34px", fontSize: "12px", padding: "0 8px" }}
+                      />
+                    </label>
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={handleSelectGlobalRoot}
+                      style={{
+                        height: "34px",
+                        padding: "0 12px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontSize: "12px",
+                        fontWeight: "500",
+                        borderColor: "rgba(24, 26, 29, 0.15)",
+                        background: "#fff"
+                      }}
+                      title="点击浏览文件夹"
+                    >
+                      <FolderOpen size={14} />
+                      <span>浏览</span>
+                    </button>
+                  </div>
+
                   <label className="field" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                     <span style={{ fontSize: "11px", fontWeight: "600", color: "rgba(23, 25, 28, 0.6)" }}>项目局部 Skills 目录 (选填)</span>
                     <input
@@ -283,6 +399,7 @@ export function SettingsSheet({
                           label: newAgentLabel.trim(),
                           globalRoots: [newGlobalRoot.trim()],
                           projectRoots: newProjectRoot.trim() ? [newProjectRoot.trim()] : [],
+                          iconData: newAgentIcon || undefined,
                         };
                         const updatedCustomAgents = [...(settings.customAgents || []), newCustomAgent];
                         const updatedEnabledAgentIds = [...(settings.enabledAgentIds || agents.map(a => a.id)), newAgentId.trim()];
@@ -295,6 +412,7 @@ export function SettingsSheet({
                         setNewAgentLabel("");
                         setNewGlobalRoot("");
                         setNewProjectRoot("");
+                        setNewAgentIcon("");
                       }}
                       style={{ minHeight: "30px", padding: "0 12px", fontSize: "12px" }}
                     >

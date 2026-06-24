@@ -19,6 +19,7 @@ export type CustomAgent = {
   label: string;
   globalRoots: string[];
   projectRoots: string[];
+  iconData?: string;
 };
 
 export type AgentDetectionSource = {
@@ -44,6 +45,7 @@ export type AgentRecord = {
   detectionSources: AgentDetectionSource[];
   skillRoots: ResolvedRoot[];
   skillEntryCount: number;
+  iconData?: string;
 };
 
 export type ResolvedRoot = {
