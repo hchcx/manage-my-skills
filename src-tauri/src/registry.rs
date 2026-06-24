@@ -694,6 +694,20 @@ fn detect_install_sources(definition: &AgentDefinition) -> Vec<AgentDetectionSou
     let mut sources = Vec::new();
     let mut seen = BTreeSet::new();
 
+    // 对于自定义 Agent，检测其 global_roots 或 project_roots 是否存在作为已安装的证据
+    for root in &definition.global_roots {
+        let path = expand_home(root);
+        if path.exists() {
+            push_source(
+                &mut sources,
+                &mut seen,
+                "custom-dir",
+                "custom global root",
+                path_to_string(&path),
+            );
+        }
+    }
+
     for command in &definition.cli_names {
         if let Some(path) = find_binary(command) {
             push_source(
@@ -773,7 +787,7 @@ fn has_install_evidence(sources: &[AgentDetectionSource]) -> bool {
     sources.iter().any(|source| {
         matches!(
             source.kind.as_str(),
-            "cli" | "app" | "extension" | "plugin-installed"
+            "cli" | "app" | "extension" | "plugin-installed" | "custom-dir"
         )
     })
 }
