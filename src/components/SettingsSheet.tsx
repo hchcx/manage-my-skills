@@ -312,10 +312,7 @@ export function SettingsSheet({
                       <div 
                         className="settings-agent-row rich" 
                         key={agent.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, index)}
                         onDragOver={(e) => handleDragOver(e, index)}
-                        onDragEnd={handleDragEnd}
                         style={{ 
                           gridTemplateColumns: "20px 24px 36px minmax(0, 1fr) auto auto 32px",
                           gap: "12px",
@@ -323,17 +320,21 @@ export function SettingsSheet({
                           background: isDraggingThis ? "rgba(0,0,0,0.03)" : "var(--card-bg, #ffffff)",
                           border: isDraggingThis ? "1px dashed #cbd5e1" : "1px solid transparent",
                           borderRadius: "6px",
-                          transition: "opacity 0.2s, background-color 0.2s",
-                          cursor: "grab"
+                          transition: "opacity 0.2s, background-color 0.2s"
                         }}
                       >
                         <div 
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, index)}
+                          onDragEnd={handleDragEnd}
                           style={{ 
                             display: "flex", 
                             alignItems: "center", 
                             justifyContent: "center", 
                             color: "#9ca3af",
-                            cursor: "grab"
+                            cursor: "grab",
+                            width: "20px",
+                            height: "100%"
                           }}
                           title="拖拽排序"
                         >
