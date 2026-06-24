@@ -26,6 +26,7 @@ export function SettingsSheet({
 }) {
   const [settingsTab, setSettingsTab] = useState<"data" | "agents">("data");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [newAgentId, setNewAgentId] = useState("");
   const [newAgentLabel, setNewAgentLabel] = useState("");
@@ -256,6 +257,8 @@ export function SettingsSheet({
                   className={`settings-agent-list ${draggedIndex !== null ? "is-dragging" : ""}`} 
                   style={{ maxHeight: "300px", overflowY: "auto", paddingRight: "4px" }}
                   onDragOver={(e) => e.preventDefault()}
+                  onDragEnter={(e) => e.preventDefault()}
+                  onDrop={(e) => e.preventDefault()}
                 >
                   {draggedIndex !== null && (
                     <style>{`
@@ -291,19 +294,28 @@ export function SettingsSheet({
                       });
                     };
 
-                    const handleDelete = (e: React.MouseEvent) => {
+                    const handleDeleteClick = (e: React.MouseEvent) => {
                       e.stopPropagation();
-                      if (confirm(`确定要删除自定义 Agent "${agent.label}" 吗？删除后将不可恢复。`)) {
-                        const newCustom = (settings.customAgents || []).filter(ca => ca.id !== agent.id);
-                        const newEnabled = (settings.enabledAgentIds || displayAgents.map(a => a.id)).filter(id => id !== agent.id);
-                        const newOrder = (settings.agentOrder || []).filter(id => id !== agent.id);
-                        onChange({
-                          ...settings,
-                          customAgents: newCustom,
-                          enabledAgentIds: newEnabled,
-                          agentOrder: newOrder
-                        });
-                      }
+                      setDeletingId(agent.id);
+                    };
+
+                    const handleConfirmDelete = (e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      const newCustom = (settings.customAgents || []).filter(ca => ca.id !== agent.id);
+                      const newEnabled = (settings.enabledAgentIds || displayAgents.map(a => a.id)).filter(id => id !== agent.id);
+                      const newOrder = (settings.agentOrder || []).filter(id => id !== agent.id);
+                      onChange({
+                        ...settings,
+                        customAgents: newCustom,
+                        enabledAgentIds: newEnabled,
+                        agentOrder: newOrder
+                      });
+                      setDeletingId(null);
+                    };
+
+                    const handleCancelDelete = (e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      setDeletingId(null);
                     };
 
                     const isDraggingThis = index === draggedIndex;
@@ -314,6 +326,7 @@ export function SettingsSheet({
                         key={agent.id}
                         onDragOver={(e) => handleDragOver(e, index)}
                         style={{ 
+                          position: "relative",
                           gridTemplateColumns: "20px 24px 36px minmax(0, 1fr) auto auto 32px",
                           gap: "12px",
                           opacity: isDraggingThis ? 0.35 : isEnabled ? 1 : 0.65,
@@ -333,9 +346,11 @@ export function SettingsSheet({
                             justifyContent: "center", 
                             color: "#9ca3af",
                             cursor: "grab",
+                            WebkitUserDrag: "element",
+                            userDrag: "element",
                             width: "20px",
                             height: "100%"
-                          }}
+                          } as any}
                           title="拖拽排序"
                         >
                           <GripVertical size={14} />
@@ -372,21 +387,53 @@ export function SettingsSheet({
 
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                           {isCustom ? (
-                            <button
-                              type="button"
-                              className="icon-button"
-                              onClick={handleDelete}
-                              title="删除自定义 Agent"
-                              style={{ 
-                                color: "#ef4444", 
-                                background: "transparent", 
-                                padding: "4px",
-                                cursor: "pointer",
-                                borderRadius: "4px"
-                              }}
-                            >
-                              <Trash2 size={15} />
-                            </button>
+                            deletingId === agent.id ? (
+                              <div style={{ 
+                                display: "flex", 
+                                gap: "6px", 
+                                position: "absolute", 
+                                right: "12px", 
+                                background: "#fef2f2", 
+                                border: "1px solid #fca5a5", 
+                                padding: "4px 8px", 
+                                borderRadius: "6px", 
+                                zIndex: 10, 
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.08)", 
+                                alignItems: "center" 
+                              }}>
+                                <span style={{ color: "#991b1b", fontSize: "11px", marginRight: "4px", fontWeight: "bold" }}>确定删除？(不可恢复)</span>
+                                <button
+                                  type="button"
+                                  onClick={handleConfirmDelete}
+                                  style={{ color: "#ffffff", border: "none", background: "#ef4444", fontSize: "11px", cursor: "pointer", fontWeight: "bold", padding: "2px 6px", borderRadius: "3px" }}
+                                >
+                                  确认
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleCancelDelete}
+                                  style={{ color: "#4b5563", border: "1px solid #d1d5db", background: "#ffffff", fontSize: "11px", cursor: "pointer", padding: "1px 5px", borderRadius: "3px" }}
+                                >
+                                  取消
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="icon-button"
+                                onClick={handleDeleteClick}
+                                title="删除自定义 Agent"
+                                style={{ 
+                                  color: "#ef4444", 
+                                  background: "transparent", 
+                                  padding: "4px",
+                                  cursor: "pointer",
+                                  borderRadius: "4px"
+                                }}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            )
                           ) : (
                             <div style={{ width: "23px" }} />
                           )}
