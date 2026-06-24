@@ -147,15 +147,60 @@ pub fn move_path(source: &Path, destination: &Path) -> Result<(), String> {
     })
 }
 
+fn remove_dir_all_force(path: &Path) -> std::io::Result<()> {
+    // 递归解除所有文件和子目录的只读权限以防止 Windows 拒绝访问
+    for entry in walkdir::WalkDir::new(path).follow_links(false) {
+        if let Ok(entry) = entry {
+            let p = entry.path();
+            if let Ok(meta) = fs::symlink_metadata(p) {
+                let mut perms = meta.permissions();
+                if perms.readonly() {
+                    perms.set_readonly(false);
+                    let _ = fs::set_permissions(p, perms);
+                }
+            }
+        }
+    }
+    fs::remove_dir_all(path)
+}
+
 pub fn remove_entry(path: &Path) -> Result<(), String> {
     let metadata = fs::symlink_metadata(path)
         .map_err(|error| format!("Unable to inspect {}: {error}", path_to_string(path)))?;
-    if metadata.file_type().is_symlink() || metadata.is_file() {
-        fs::remove_file(path)
-            .map_err(|error| format!("Unable to remove {}: {error}", path_to_string(path)))
+    
+    // 如果文件或目录本身是只读的，在 Windows 下必须要先解除只读权限才能执行删除/重命名
+    let mut permissions = metadata.permissions();
+    if permissions.readonly() {
+        permissions.set_readonly(false);
+        let _ = fs::set_permissions(path, permissions);
+    }
+
+    if metadata.file_type().is_symlink() {
+        // 在 Windows 上，指向目录的符号链接（symlink_dir）不能通过 fs::remove_file 删除（会返回 os error 5 拒绝访问）
+        // 必须使用 fs::remove_dir 删除。为了兼容，我们优先尝试 remove_file，失败时尝试 remove_dir
+        if fs::remove_file(path).is_err() {
+            fs::remove_dir(path).map_err(|error| {
+                format!(
+                    "Unable to remove symlink {}: {error}",
+                    path_to_string(path)
+                )
+            })?;
+        }
+        Ok(())
+    } else if metadata.is_file() {
+        fs::remove_file(path).map_err(|error| {
+            format!(
+                "Unable to remove file {}: {error}",
+                path_to_string(path)
+            )
+        })
     } else if metadata.is_dir() {
-        fs::remove_dir_all(path)
-            .map_err(|error| format!("Unable to remove {}: {error}", path_to_string(path)))
+        remove_dir_all_force(path).map_err(|error| {
+            format!(
+                "Unable to remove directory {}: {error}",
+                path_to_string(path)
+            )
+        })
     } else {
         Err(format!(
             "Unsupported entry type at {}",
