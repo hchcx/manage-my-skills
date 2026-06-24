@@ -34,5 +34,14 @@
     "active": true,
     "targets": ["app", "dmg"],
     "icon": ["icons/icon.png"]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/hchcx/manage-my-skills/releases/latest/download/latest.json"
+      ],
+      "pubkey": "YOUR_PUBLIC_KEY_CONTENT_HERE"
+    }
   }
 }

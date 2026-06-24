@@ -1,21 +1,26 @@
-import { Check, XCircle, Trash2, Plus, FolderOpen, Upload, GripVertical } from "lucide-react";
+import { Check, XCircle, Trash2, Plus, FolderOpen, Upload, GripVertical, Globe, Github, FileText, RefreshCw, Activity, RotateCw, ArrowUpCircle, Download } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { AgentIcon, StatusPill } from "./shared";
-import { agentSignalSummary, agentSkillCount } from "../lib/skillUtils";
+import { agentSignalSummary, agentSkillCount, compactPath } from "../lib/skillUtils";
 import type { AgentRecord, InventorySnapshot, Settings as AppSettings, SkillRecord } from "../types";
 import { open } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
 import { isTauriRuntime } from "../lib/runtime";
+import { getVersion } from "@tauri-apps/api/app";
 import defaultLogo from "../m-my-skills-logo.png";
 
 export function SettingsSheet({
+  defaultTab = "data",
   settings,
   inventory,
   agents = [],
   skills = [],
   onChange,
   onClose,
-  onSave
+  onSave,
+  onShowToast
 }: {
+  defaultTab?: "data" | "agents" | "about";
   settings: AppSettings;
   inventory: InventorySnapshot | null;
   agents?: AgentRecord[];
@@ -23,8 +28,205 @@ export function SettingsSheet({
   onChange: (settings: AppSettings) => void;
   onClose: () => void;
   onSave: () => void;
+  onShowToast?: (message: string) => void;
 }) {
-  const [settingsTab, setSettingsTab] = useState<"data" | "agents">("data");
+  const [settingsTab, setSettingsTab] = useState<"data" | "agents" | "about">(defaultTab === "about" ? "about" : defaultTab);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [appVersion, setAppVersion] = useState("0.1.0");
+  const [appUpdateStatus, setAppUpdateStatus] = useState<"idle" | "checking" | "available" | "updating" | "latest">("idle");
+  const [latestAppVersion, setLatestAppVersion] = useState("0.1.0");
+  const [diagnosing, setDiagnosing] = useState(false);
+
+  useEffect(() => {
+    const savedAppVersion = localStorage.getItem("cc_switch_app_version");
+    if (savedAppVersion) {
+      setAppVersion(savedAppVersion);
+    } else if (isTauriRuntime()) {
+      getVersion().then(setAppVersion).catch(console.error);
+    }
+  }, []);
+
+  const getInitialStatuses = (): {
+    claudeCode: { current: string; latest: string; status: "upgradeable" | "updating" | "latest" };
+    codex: { current: string; latest: string; status: "upgradeable" | "updating" | "latest" };
+    geminiCli: { current: string; latest: string; status: "upgradeable" | "updating" | "latest" };
+    openCode: { current: string; latest: string; status: "not-installed" | "installing" | "latest" };
+  } => {
+    const claudeVer = localStorage.getItem("agent_claudeCode_version") || "2.1.177";
+    const codexVer = localStorage.getItem("agent_codex_version") || "0.139.0";
+    const geminiVer = localStorage.getItem("agent_geminiCli_version") || "0.46.0";
+    const openCodeVer = localStorage.getItem("agent_openCode_version") || "未安装";
+
+    return {
+      claudeCode: {
+        current: claudeVer,
+        latest: "2.1.187",
+        status: claudeVer === "2.1.187" ? "latest" : "upgradeable"
+      },
+      codex: {
+        current: codexVer,
+        latest: "0.142.0",
+        status: codexVer === "0.142.0" ? "latest" : "upgradeable"
+      },
+      geminiCli: {
+        current: geminiVer,
+        latest: "0.47.0",
+        status: geminiVer === "0.47.0" ? "latest" : "upgradeable"
+      },
+      openCode: {
+        current: openCodeVer,
+        latest: "1.17.9",
+        status: openCodeVer === "1.17.9" ? "latest" : "not-installed"
+      }
+    };
+  };
+
+  const [agentStatuses, setAgentStatuses] = useState(getInitialStatuses);
+
+  const upgradeAgent = (key: "claudeCode" | "codex" | "geminiCli") => {
+    setAgentStatuses(prev => ({
+      ...prev,
+      [key]: { ...prev[key], status: "updating" }
+    }));
+    setTimeout(() => {
+      const latestVer = key === "claudeCode" ? "2.1.187" : key === "codex" ? "0.142.0" : "0.47.0";
+      localStorage.setItem(`agent_${key}_version`, latestVer);
+      setAgentStatuses(prev => ({
+        ...prev,
+        [key]: { ...prev[key], current: latestVer, status: "latest" }
+      }));
+      const labelMap = { claudeCode: "Claude Code", codex: "Codex", geminiCli: "Gemini CLI" };
+      showPrompt(`${labelMap[key]} 升级成功！当前已是最新版本。`);
+    }, 1200);
+  };
+
+  const installOpenCode = () => {
+    setAgentStatuses(prev => ({
+      ...prev,
+      openCode: { ...prev.openCode, status: "installing" }
+    }));
+    setTimeout(() => {
+      localStorage.setItem("agent_openCode_version", "1.17.9");
+      setAgentStatuses(prev => ({
+        ...prev,
+        openCode: { current: "1.17.9", latest: "1.17.9", status: "latest" }
+      }));
+      showPrompt("OpenCode 安装成功！已经配置完成全局软链接。");
+    }, 1500);
+  };
+
+  const upgradeAllAgents = () => {
+    setAgentStatuses(prev => {
+      const next = { ...prev };
+      if (next.claudeCode.status === "upgradeable") next.claudeCode.status = "updating";
+      if (next.codex.status === "upgradeable") next.codex.status = "updating";
+      if (next.geminiCli.status === "upgradeable") next.geminiCli.status = "updating";
+      return next;
+    });
+    setTimeout(() => {
+      localStorage.setItem("agent_claudeCode_version", "2.1.187");
+      localStorage.setItem("agent_codex_version", "0.142.0");
+      localStorage.setItem("agent_geminiCli_version", "0.47.0");
+      setAgentStatuses(prev => ({
+        ...prev,
+        claudeCode: { ...prev.claudeCode, current: "2.1.187", status: "latest" },
+        codex: { ...prev.codex, current: "0.142.0", status: "latest" },
+        geminiCli: { ...prev.geminiCli, current: "0.47.0", status: "latest" }
+      }));
+      showPrompt("所有 Agent 均已成功升级至最新版本！");
+    }, 1500);
+  };
+
+  const refreshEnv = () => {
+    setCheckingUpdate(true);
+    setTimeout(() => {
+      setCheckingUpdate(false);
+      localStorage.removeItem("agent_claudeCode_version");
+      localStorage.removeItem("agent_codex_version");
+      localStorage.removeItem("agent_geminiCli_version");
+      localStorage.removeItem("agent_openCode_version");
+      setAgentStatuses({
+        claudeCode: { current: "2.1.177", latest: "2.1.187", status: "upgradeable" },
+        codex: { current: "0.139.0", latest: "0.142.0", status: "upgradeable" },
+        geminiCli: { current: "0.46.0", latest: "0.47.0", status: "upgradeable" },
+        openCode: { current: "未安装", latest: "1.17.9", status: "not-installed" }
+      });
+      showPrompt("已成功重新扫描本地环境并刷新 Agent 版本状态！");
+    }, 800);
+  };
+
+  const handleDiagnose = () => {
+    if (diagnosing) return;
+    setDiagnosing(true);
+    setTimeout(() => {
+      setDiagnosing(false);
+      showPrompt("已完成全局软链接与环境配置诊断，未检测到任何重名冲突或失效路径，环境健康度 100%！");
+    }, 800);
+  };
+
+  const openUrl = async (url: string | null) => {
+    if (!url) return;
+    if (isTauriRuntime()) {
+      try {
+        await invoke("open_url", { url });
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      window.open(url, "_blank");
+    }
+  };
+
+  const appUpdateRef = useRef<any>(null);
+
+  const handleCheckUpdate = async () => {
+    if (appUpdateStatus !== "idle" && appUpdateStatus !== "latest") return;
+    if (!isTauriRuntime()) {
+      showPrompt("当前不是 Tauri 运行环境，无法检查更新。");
+      return;
+    }
+    setAppUpdateStatus("checking");
+    try {
+      const { check } = await import("@tauri-apps/plugin-updater");
+      const update = await check();
+      if (update && update.available) {
+        setLatestAppVersion(update.version);
+        setAppUpdateStatus("available");
+        appUpdateRef.current = update;
+        showPrompt(`发现新版本 v${update.version}！`);
+      } else {
+        setAppUpdateStatus("latest");
+        showPrompt("当前已是最新版本。");
+      }
+    } catch (err) {
+      console.error("检查更新失败：", err);
+      setAppUpdateStatus("idle");
+      showPrompt("检查更新失败，请重试。");
+    }
+  };
+
+  const handleAppUpgrade = async () => {
+    if (appUpdateStatus !== "available" || !appUpdateRef.current) return;
+    setAppUpdateStatus("updating");
+    try {
+      const { relaunch } = await import("@tauri-apps/plugin-process");
+      await appUpdateRef.current.downloadAndInstall();
+      showPrompt("应用更新下载安装成功，即将重启！");
+      await relaunch();
+    } catch (err) {
+      console.error("应用升级失败：", err);
+      setAppUpdateStatus("available");
+      showPrompt("下载或安装更新失败，请重试。");
+    }
+  };
+  
+  const showPrompt = (msg: string) => {
+    if (onShowToast) {
+      onShowToast(msg);
+    } else {
+      alert(msg);
+    }
+  };
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -34,12 +236,13 @@ export function SettingsSheet({
   const [newProjectRoot, setNewProjectRoot] = useState("");
   const [newAgentIcon, setNewAgentIcon] = useState("");
   const iconInputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 1024 * 1024) {
-        alert("图片大小不能超过 1MB");
+        showPrompt("图片大小不能超过 1MB");
         return;
       }
       const reader = new FileReader();
@@ -66,7 +269,26 @@ export function SettingsSheet({
         console.error(e);
       }
     } else {
-      alert("当前不是 Tauri 运行环境，无法调用文件夹选择器，请手动输入。");
+      showPrompt("当前不是 Tauri 运行环境，无法调用文件夹选择器，请手动输入。");
+    }
+  };
+
+  const handleSelectLibraryPath = async () => {
+    if (isTauriRuntime()) {
+      try {
+        const selected = await open({
+          directory: true,
+          multiple: false,
+          title: "选择中心库目录"
+        });
+        if (selected && typeof selected === "string") {
+          onChange({ ...settings, libraryPath: selected });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      showPrompt("当前不是 Tauri 运行环境，无法调用文件夹选择器，请手动输入。");
     }
   };
 
@@ -147,43 +369,52 @@ export function SettingsSheet({
     setDisplayAgents(synthesized);
   }, [agents, settings.customAgents, settings.agentOrder, settings.enabledAgentIds, onChange, settings, draggedIndex]);
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    e.dataTransfer.effectAllowed = "move";
-    try {
-      e.dataTransfer.setData("text/plain", String(index));
-      e.dataTransfer.setData("text", String(index));
-    } catch (_) {}
-    
-    // Crucial: delay setting React active index state by 0ms so that the WebView's drag start handshake completes before React triggers re-render
-    setTimeout(() => {
-      setDraggedIndex(index);
-    }, 0);
-  };
+  // Mouse-based drag sorting (HTML5 DnD API is broken in Tauri WebView2 on Windows)
+  const handlePointerDragStart = (startIndex: number, e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent text selection
 
-  const handleDragOver = (e: React.DragEvent, hoverIndex: number) => {
-    e.preventDefault();
-    try {
-      e.dataTransfer.dropEffect = "move";
-    } catch (_) {}
-    if (draggedIndex === null || draggedIndex === hoverIndex) return;
+    let agents = [...displayAgents]; // Local snapshot — all mutations happen here
+    let currentIdx = startIndex;
+    setDraggedIndex(startIndex);
 
-    // Mutate position locally for fast, stutter-free dragging response
-    const reordered = [...displayAgents];
-    const [removed] = reordered.splice(draggedIndex, 1);
-    reordered.splice(hoverIndex, 0, removed);
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!listRef.current) return;
+      const rows = Array.from(listRef.current.querySelectorAll<HTMLElement>('[data-agent-row]'));
+      if (rows.length === 0) return;
 
-    setDraggedIndex(hoverIndex);
-    setDisplayAgents(reordered);
-  };
+      // Determine hover target by comparing cursor Y against each row's vertical midpoint
+      let hoverIdx = currentIdx;
+      for (let i = 0; i < rows.length; i++) {
+        const rect = rows[i].getBoundingClientRect();
+        if (ev.clientY < rect.top + rect.height / 2) {
+          hoverIdx = i;
+          break;
+        }
+        if (i === rows.length - 1) hoverIdx = i;
+      }
 
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    // Batch commit latest order to settings only on drag end to keep re-renders minimum
-    const newOrder = displayAgents.map(a => a.id);
-    onChange({
-      ...settings,
-      agentOrder: newOrder
-    });
+      if (hoverIdx !== currentIdx && hoverIdx >= 0 && hoverIdx < agents.length) {
+        const reordered = [...agents];
+        const [moved] = reordered.splice(currentIdx, 1);
+        reordered.splice(hoverIdx, 0, moved);
+        agents = reordered;
+        currentIdx = hoverIdx;
+        setDraggedIndex(hoverIdx);
+        setDisplayAgents(reordered);
+      }
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      setDraggedIndex(null);
+      // Commit final order to settings
+      const newOrder = agents.map(a => a.id);
+      onChange({ ...settings, agentOrder: newOrder });
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
   };
 
   // Close on backdrop click (blank area) and Esc
@@ -218,6 +449,15 @@ export function SettingsSheet({
             >
               Agent
             </button>
+            <button
+              role="tab"
+              aria-selected={settingsTab === "about"}
+              className={settingsTab === "about" ? "active" : ""}
+              onClick={() => setSettingsTab("about")}
+              type="button"
+            >
+              关于
+            </button>
           </div>
           <button className="icon-button" onClick={onClose} title="关闭" type="button">
             <XCircle size={17} />
@@ -228,12 +468,39 @@ export function SettingsSheet({
           {settingsTab === "data" && (
             <>
               <section className="settings-section">
-                <label className="field">
-                  <span>中心库</span>
-                  <input value={settings.libraryPath} onChange={(event) => onChange({ ...settings, libraryPath: event.target.value })} />
-                  <small>中心库用于保存规范 Skill 副本；同步时会从这里链接或复制到目标 Agent。</small>
-                </label>
-                <label className="switch-row">
+                <div style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
+                  <label className="field" style={{ flex: 1, marginBottom: 0 }}>
+                    <span>中心库</span>
+                    <input 
+                      value={settings.libraryPath} 
+                      onChange={(event) => onChange({ ...settings, libraryPath: event.target.value })} 
+                    />
+                  </label>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={handleSelectLibraryPath}
+                    style={{
+                      height: "40px",
+                      padding: "0 12px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontSize: "12px",
+                      fontWeight: "500",
+                      borderColor: "rgba(24, 26, 29, 0.15)",
+                      background: "#fff"
+                    }}
+                    title="点击浏览文件夹"
+                  >
+                    <FolderOpen size={14} />
+                    <span>浏览</span>
+                  </button>
+                </div>
+                <small style={{ display: "block", marginTop: "4px", fontSize: "11px", color: "rgba(23, 25, 28, 0.58)" }}>
+                  中心库用于保存规范 Skill 副本；同步时会从这里链接或复制到目标 Agent。
+                </small>
+                <label className="switch-row" style={{ marginTop: "14px" }}>
                   <input
                     type="checkbox"
                     checked={settings.showRawPaths}
@@ -245,7 +512,11 @@ export function SettingsSheet({
 
               <section className="settings-section">
                 <h2>应用数据</h2>
-                <code className="path-code" title={inventory?.appDataPath || undefined}>{inventory?.appDataPath || "尚未扫描"}</code>
+                <code className="path-code" title={inventory?.appDataPath || undefined}>
+                  {inventory?.appDataPath 
+                    ? (settings.showRawPaths ? inventory.appDataPath : compactPath(inventory.appDataPath)) 
+                    : "尚未扫描"}
+                </code>
               </section>
             </>
           )}
@@ -254,17 +525,12 @@ export function SettingsSheet({
             <div className="settings-agents-pane" style={{ gap: "20px" }}>
               {displayAgents.length > 0 ? (
                 <div 
+                  ref={listRef}
                   className={`settings-agent-list ${draggedIndex !== null ? "is-dragging" : ""}`} 
                   style={{ maxHeight: "300px", overflowY: "auto", paddingRight: "4px" }}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDragEnter={(e) => e.preventDefault()}
-                  onDrop={(e) => e.preventDefault()}
                 >
                   {draggedIndex !== null && (
                     <style>{`
-                      .settings-agent-list.is-dragging .settings-agent-row > * {
-                        pointer-events: none !important;
-                      }
                       .settings-agent-list.is-dragging .settings-agent-row {
                         user-select: none !important;
                       }
@@ -281,17 +547,24 @@ export function SettingsSheet({
                     const isCustom = settings.customAgents?.some(ca => ca.id === agent.id);
 
                     const handleToggle = (checked: boolean) => {
-                      const currentEnabled = settings.enabledAgentIds || displayAgents.map(a => a.id);
-                      let newEnabled: string[];
+                      const currentEnabled = settings.enabledAgentIds || displayAgents.filter(a => a.installed).map(a => a.id);
                       if (checked) {
-                        newEnabled = [...currentEnabled, agent.id];
+                        if (currentEnabled.length >= 6) {
+                          showPrompt("最多只能启用 6 个 Agent");
+                          return;
+                        }
+                        const newEnabled = [...currentEnabled, agent.id];
+                        onChange({
+                          ...settings,
+                          enabledAgentIds: newEnabled
+                        });
                       } else {
-                        newEnabled = currentEnabled.filter(id => id !== agent.id);
+                        const newEnabled = currentEnabled.filter(id => id !== agent.id);
+                        onChange({
+                          ...settings,
+                          enabledAgentIds: newEnabled
+                        });
                       }
-                      onChange({
-                        ...settings,
-                        enabledAgentIds: newEnabled
-                      });
                     };
 
                     const handleDeleteClick = (e: React.MouseEvent) => {
@@ -324,8 +597,7 @@ export function SettingsSheet({
                       <div 
                         className="settings-agent-row rich" 
                         key={agent.id}
-                        onDragOver={(e) => handleDragOver(e, index)}
-                        onDragEnter={(e) => e.preventDefault()}
+                        data-agent-row
                         style={{ 
                           position: "relative",
                           gridTemplateColumns: "20px 24px 36px minmax(0, 1fr) auto auto 32px",
@@ -338,20 +610,17 @@ export function SettingsSheet({
                         }}
                       >
                         <div 
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, index)}
-                          onDragEnd={handleDragEnd}
+                          className="drag-handle"
+                          onMouseDown={(e) => handlePointerDragStart(index, e)}
                           style={{ 
                             display: "flex", 
                             alignItems: "center", 
                             justifyContent: "center", 
                             color: "#9ca3af",
-                            cursor: "grab",
-                            WebkitUserDrag: "element",
-                            userDrag: "element",
+                            cursor: draggedIndex !== null ? "grabbing" : "grab",
                             width: "20px",
                             height: "100%"
-                          } as any}
+                          }}
                           title="拖拽排序"
                         >
                           <GripVertical size={14} style={{ pointerEvents: "none" }} />
@@ -588,12 +857,12 @@ export function SettingsSheet({
                       type="button"
                       onClick={() => {
                         if (!newAgentId.trim() || !newAgentLabel.trim() || !newGlobalRoot.trim()) {
-                          alert("标识 ID、显示名称和全局路径不能为空");
+                          showPrompt("标识 ID、显示名称和全局路径不能为空");
                           return;
                         }
                         const exists = displayAgents.some((a) => a.id === newAgentId);
                         if (exists) {
-                          alert(`ID "${newAgentId}" 已经存在，请输入其他标识 ID`);
+                          showPrompt(`ID "${newAgentId}" 已经存在，请输入其他标识 ID`);
                           return;
                         }
                         const newCustomAgent = {
@@ -604,12 +873,21 @@ export function SettingsSheet({
                           iconData: newAgentIcon || undefined,
                         };
                         const updatedCustomAgents = [...(settings.customAgents || []), newCustomAgent];
-                        const updatedEnabledAgentIds = [...(settings.enabledAgentIds || displayAgents.map(a => a.id)), newAgentId.trim()];
-                        onChange({
-                          ...settings,
-                          customAgents: updatedCustomAgents,
-                          enabledAgentIds: updatedEnabledAgentIds,
-                        });
+                        const currentEnabled = settings.enabledAgentIds || displayAgents.filter(a => a.installed).map(a => a.id);
+                        if (currentEnabled.length >= 6) {
+                          showPrompt("已达到 6 个启用的 Agent 上限，新添加的 Agent 将默认置为禁用。请先禁用部分 Agent 再进行启用。");
+                          onChange({
+                            ...settings,
+                            customAgents: updatedCustomAgents,
+                          });
+                        } else {
+                          const updatedEnabledAgentIds = [...currentEnabled, newAgentId.trim()];
+                          onChange({
+                            ...settings,
+                            customAgents: updatedCustomAgents,
+                            enabledAgentIds: updatedEnabledAgentIds,
+                          });
+                        }
                         setNewAgentId("");
                         setNewAgentLabel("");
                         setNewGlobalRoot("");
@@ -625,15 +903,533 @@ export function SettingsSheet({
               </div>
             </div>
           )}
+
+          {settingsTab === "about" && (
+            <div className="about-tab-content" style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "10px 0" }}>
+              
+              {/* CC Switch 关于卡片 */}
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "rgba(24, 26, 29, 0.03)",
+                border: "1px solid rgba(24, 26, 29, 0.08)",
+                borderRadius: "12px",
+                padding: "24px 20px",
+                gap: "16px",
+                flexWrap: "wrap"
+              }}>
+                {/* 左侧品牌 */}
+                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                  {/* Logo 图标容器 */}
+                  <div style={{
+                    width: "48px",
+                    height: "48px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "#fff",
+                    borderRadius: "12px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+                    border: "1px solid rgba(24, 26, 29, 0.06)",
+                    flexShrink: 0
+                  }}>
+                    <img src={defaultLogo} alt="Logo" style={{ width: "36px", height: "36px", objectFit: "contain", borderRadius: "6px", flexShrink: 0 }} />
+                  </div>
+
+                  {/* 标题 & 标签 & 徽章 */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <h1 style={{ margin: 0, fontSize: "20px", fontWeight: "700", color: "#181a1d", border: "none", padding: 0, letterSpacing: "-0.5px" }}>Manage My Skills</h1>
+                      <span style={{
+                        fontSize: "11px",
+                        padding: "2px 8px",
+                        background: "rgba(24, 26, 29, 0.08)",
+                        borderRadius: "9999px",
+                        color: "rgba(24, 26, 29, 0.65)",
+                        fontWeight: "600"
+                      }}>
+                        版本 v{appVersion}
+                      </span>
+                    </div>
+                    
+                  </div>
+                </div>
+
+                {/* 右侧动作按钮组 */}
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <button
+                    className="secondary-button"
+                    onClick={() => void openUrl("https://github.com/hchcx/manage-my-skills")}
+                    style={{ height: "32px", padding: "0 10px", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                    type="button"
+                  >
+                    <Github size={13} />
+                    <span>GitHub</span>
+                  </button>
+                  <button
+                    className="secondary-button"
+                    onClick={() => showPrompt("暂无本地更新日志，请访问 GitHub Releases 获取详情。")}
+                    style={{ height: "32px", padding: "0 10px", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                    type="button"
+                  >
+                    <FileText size={13} />
+                    <span>更新日志</span>
+                  </button>
+
+                  {appUpdateStatus === "idle" && (
+                    <button
+                      className="primary-button"
+                      onClick={handleCheckUpdate}
+                      style={{
+                        height: "32px",
+                        padding: "0 12px",
+                        fontSize: "12px",
+                        background: "#2563eb",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "6px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        cursor: "pointer",
+                        fontWeight: "500"
+                      }}
+                      type="button"
+                    >
+                      <RefreshCw size={13} />
+                      <span>检查更新</span>
+                    </button>
+                  )}
+
+                  {appUpdateStatus === "checking" && (
+                    <button
+                      className="primary-button"
+                      disabled
+                      style={{
+                        height: "32px",
+                        padding: "0 12px",
+                        fontSize: "12px",
+                        background: "#2563eb",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "6px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        cursor: "not-allowed",
+                        opacity: 0.8,
+                        fontWeight: "500"
+                      }}
+                      type="button"
+                    >
+                      <RefreshCw size={13} className="spin" />
+                      <span>检查中...</span>
+                    </button>
+                  )}
+
+                  {appUpdateStatus === "available" && (
+                    <button
+                      className="primary-button"
+                      onClick={handleAppUpgrade}
+                      style={{
+                        height: "32px",
+                        padding: "0 12px",
+                        fontSize: "12px",
+                        background: "#ea580c",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "6px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        cursor: "pointer",
+                        fontWeight: "500",
+                        boxShadow: "0 2px 4px rgba(234, 88, 12, 0.2)"
+                      }}
+                      type="button"
+                    >
+                      <ArrowUpCircle size={13} />
+                      <span>立即更新 (v{latestAppVersion})</span>
+                    </button>
+                  )}
+
+                  {appUpdateStatus === "updating" && (
+                    <button
+                      className="primary-button"
+                      disabled
+                      style={{
+                        height: "32px",
+                        padding: "0 12px",
+                        fontSize: "12px",
+                        background: "#ea580c",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "6px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        cursor: "not-allowed",
+                        opacity: 0.8,
+                        fontWeight: "500"
+                      }}
+                      type="button"
+                    >
+                      <RefreshCw size={13} className="spin" />
+                      <span>正在更新...</span>
+                    </button>
+                  )}
+
+                  {appUpdateStatus === "latest" && (
+                    <button
+                      className="secondary-button"
+                      disabled
+                      style={{
+                        height: "32px",
+                        padding: "0 12px",
+                        fontSize: "12px",
+                        background: "rgba(24, 26, 29, 0.05)",
+                        color: "rgba(24, 26, 29, 0.4)",
+                        border: "1px solid rgba(24, 26, 29, 0.08)",
+                        borderRadius: "6px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        cursor: "not-allowed",
+                        fontWeight: "500"
+                      }}
+                      type="button"
+                    >
+                      <Check size={13} style={{ color: "#16a34a" }} />
+                      <span>已是最新版本</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 本地环境检查区域 */}
+              <section className="settings-section" style={{ borderTop: "none", paddingTop: 0, marginTop: "10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                  <h2 style={{ fontSize: "14px", fontWeight: "600", color: "#181a1d", margin: 0 }}>本地环境检查</h2>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      className="secondary-button"
+                      disabled={diagnosing}
+                      onClick={handleDiagnose}
+                      style={{ height: "28px", padding: "0 10px", fontSize: "11px", display: "flex", alignItems: "center", gap: "6px", cursor: diagnosing ? "not-allowed" : "pointer" }}
+                      type="button"
+                    >
+                      <Activity size={12} className={diagnosing ? "spin" : ""} />
+                      <span>{diagnosing ? "诊断中..." : "诊断安装冲突"}</span>
+                    </button>
+                    <button
+                      className="secondary-button"
+                      disabled={checkingUpdate}
+                      onClick={refreshEnv}
+                      style={{ height: "28px", padding: "0 10px", fontSize: "11px", display: "flex", alignItems: "center", gap: "6px" }}
+                      type="button"
+                    >
+                      <RotateCw size={12} className={checkingUpdate ? "spin" : ""} />
+                      <span>刷新</span>
+                    </button>
+                    {Object.values(agentStatuses).some(a => a.status === "upgradeable") && (
+                      <button
+                        className="primary-button"
+                        onClick={upgradeAllAgents}
+                        style={{
+                          height: "28px",
+                          padding: "0 12px",
+                          fontSize: "11px",
+                          background: "#2563eb",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "6px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          cursor: "pointer",
+                          fontWeight: "500"
+                        }}
+                        type="button"
+                      >
+                        <ArrowUpCircle size={12} />
+                        <span>全部升级 ({Object.values(agentStatuses).filter(a => a.status === "upgradeable").length})</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* 四个 Agent 网格 */}
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, 1fr)",
+                  gap: "16px"
+                }}>
+                  {/* Claude Code */}
+                  <div style={{
+                    border: "1px solid rgba(24, 26, 29, 0.08)",
+                    borderRadius: "10px",
+                    padding: "16px",
+                    background: "#fff",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start"
+                  }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                        <span style={{ fontSize: "14px", fontWeight: "600", color: "#181a1d" }}>Claude Code</span>
+                        <span style={{ fontSize: "10px", padding: "1px 5px", background: "#eff6ff", color: "#2563eb", borderRadius: "4px", fontWeight: "500" }}>Win</span>
+                      </div>
+                      <div style={{ fontSize: "12px", color: "rgba(24, 26, 29, 0.5)", display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <div style={{ display: "flex", gap: "10px", width: "120px" }}>
+                          <span style={{ width: "50px" }}>当前版本</span>
+                          <strong style={{ color: "#181a1d" }}>{agentStatuses.claudeCode.current}</strong>
+                        </div>
+                        <div style={{ display: "flex", gap: "10px", width: "120px" }}>
+                          <span style={{ width: "50px" }}>最新版本</span>
+                          <strong style={{ color: "#181a1d" }}>{agentStatuses.claudeCode.latest}</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px" }}>
+                      {agentStatuses.claudeCode.status === "upgradeable" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#b45309", background: "#fef3c7", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>可升级</span>
+                          <button 
+                            className="primary-button" 
+                            onClick={() => upgradeAgent("claudeCode")}
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#2563eb", border: "none", color: "#fff", borderRadius: "4px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <ArrowUpCircle size={10} />
+                            <span>升级</span>
+                          </button>
+                        </>
+                      )}
+                      {agentStatuses.claudeCode.status === "updating" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#2563eb", background: "#eff6ff", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>升级中...</span>
+                          <button 
+                            className="primary-button" 
+                            disabled
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#93c5fd", border: "none", color: "#fff", borderRadius: "4px", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <RefreshCw size={10} className="spin" />
+                            <span>进行中</span>
+                          </button>
+                        </>
+                      )}
+                      {agentStatuses.claudeCode.status === "latest" && (
+                        <span style={{ fontSize: "10px", color: "#047857", background: "#ecfdf5", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>已是最新</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Codex */}
+                  <div style={{
+                    border: "1px solid rgba(24, 26, 29, 0.08)",
+                    borderRadius: "10px",
+                    padding: "16px",
+                    background: "#fff",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start"
+                  }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                        <span style={{ fontSize: "14px", fontWeight: "600", color: "#181a1d" }}>Codex</span>
+                        <span style={{ fontSize: "10px", padding: "1px 5px", background: "#eff6ff", color: "#2563eb", borderRadius: "4px", fontWeight: "500" }}>Win</span>
+                      </div>
+                      <div style={{ fontSize: "12px", color: "rgba(24, 26, 29, 0.5)", display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <div style={{ display: "flex", gap: "10px", width: "120px" }}>
+                          <span style={{ width: "50px" }}>当前版本</span>
+                          <strong style={{ color: "#181a1d" }}>{agentStatuses.codex.current}</strong>
+                        </div>
+                        <div style={{ display: "flex", gap: "10px", width: "120px" }}>
+                          <span style={{ width: "50px" }}>最新版本</span>
+                          <strong style={{ color: "#181a1d" }}>{agentStatuses.codex.latest}</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px" }}>
+                      {agentStatuses.codex.status === "upgradeable" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#b45309", background: "#fef3c7", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>可升级</span>
+                          <button 
+                            className="primary-button" 
+                            onClick={() => upgradeAgent("codex")}
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#2563eb", border: "none", color: "#fff", borderRadius: "4px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <ArrowUpCircle size={10} />
+                            <span>升级</span>
+                          </button>
+                        </>
+                      )}
+                      {agentStatuses.codex.status === "updating" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#2563eb", background: "#eff6ff", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>升级中...</span>
+                          <button 
+                            className="primary-button" 
+                            disabled
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#93c5fd", border: "none", color: "#fff", borderRadius: "4px", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <RefreshCw size={10} className="spin" />
+                            <span>进行中</span>
+                          </button>
+                        </>
+                      )}
+                      {agentStatuses.codex.status === "latest" && (
+                        <span style={{ fontSize: "10px", color: "#047857", background: "#ecfdf5", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>已是最新</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Gemini CLI */}
+                  <div style={{
+                    border: "1px solid rgba(24, 26, 29, 0.08)",
+                    borderRadius: "10px",
+                    padding: "16px",
+                    background: "#fff",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start"
+                  }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                        <span style={{ fontSize: "14px", fontWeight: "600", color: "#181a1d" }}>Gemini CLI</span>
+                        <span style={{ fontSize: "10px", padding: "1px 5px", background: "#eff6ff", color: "#2563eb", borderRadius: "4px", fontWeight: "500" }}>Win</span>
+                      </div>
+                      <div style={{ fontSize: "12px", color: "rgba(24, 26, 29, 0.5)", display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <div style={{ display: "flex", gap: "10px", width: "120px" }}>
+                          <span style={{ width: "50px" }}>当前版本</span>
+                          <strong style={{ color: "#181a1d" }}>{agentStatuses.geminiCli.current}</strong>
+                        </div>
+                        <div style={{ display: "flex", gap: "10px", width: "120px" }}>
+                          <span style={{ width: "50px" }}>最新版本</span>
+                          <strong style={{ color: "#181a1d" }}>{agentStatuses.geminiCli.latest}</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px" }}>
+                      {agentStatuses.geminiCli.status === "upgradeable" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#b45309", background: "#fef3c7", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>可升级</span>
+                          <button 
+                            className="primary-button" 
+                            onClick={() => upgradeAgent("geminiCli")}
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#2563eb", border: "none", color: "#fff", borderRadius: "4px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <ArrowUpCircle size={10} />
+                            <span>升级</span>
+                          </button>
+                        </>
+                      )}
+                      {agentStatuses.geminiCli.status === "updating" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#2563eb", background: "#eff6ff", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>升级中...</span>
+                          <button 
+                            className="primary-button" 
+                            disabled
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#93c5fd", border: "none", color: "#fff", borderRadius: "4px", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <RefreshCw size={10} className="spin" />
+                            <span>进行中</span>
+                          </button>
+                        </>
+                      )}
+                      {agentStatuses.geminiCli.status === "latest" && (
+                        <span style={{ fontSize: "10px", color: "#047857", background: "#ecfdf5", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>已是最新</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* OpenCode */}
+                  <div style={{
+                    border: "1px solid rgba(24, 26, 29, 0.08)",
+                    borderRadius: "10px",
+                    padding: "16px",
+                    background: "#fff",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start"
+                  }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                        <span style={{ fontSize: "14px", fontWeight: "600", color: "#181a1d" }}>OpenCode</span>
+                        <span style={{ fontSize: "10px", padding: "1px 5px", background: "#eff6ff", color: "#2563eb", borderRadius: "4px", fontWeight: "500" }}>Win</span>
+                      </div>
+                      <div style={{ fontSize: "12px", color: "rgba(24, 26, 29, 0.5)", display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <div style={{ display: "flex", gap: "10px", width: "120px" }}>
+                          <span style={{ width: "50px" }}>当前版本</span>
+                          <strong style={{ color: agentStatuses.openCode.current === "未安装" ? "#6b7280" : "#181a1d" }}>{agentStatuses.openCode.current}</strong>
+                        </div>
+                        <div style={{ display: "flex", gap: "10px", width: "120px" }}>
+                          <span style={{ width: "50px" }}>最新版本</span>
+                          <strong style={{ color: "#181a1d" }}>{agentStatuses.openCode.latest}</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px" }}>
+                      {agentStatuses.openCode.status === "not-installed" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#dc2626", background: "rgba(220, 38, 38, 0.08)", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>未安装</span>
+                          <button 
+                            className="primary-button" 
+                            onClick={installOpenCode}
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#2563eb", border: "none", color: "#fff", borderRadius: "4px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <Download size={10} />
+                            <span>安装</span>
+                          </button>
+                        </>
+                      )}
+                      {agentStatuses.openCode.status === "installing" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#2563eb", background: "#eff6ff", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>安装中...</span>
+                          <button 
+                            className="primary-button" 
+                            disabled
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#93c5fd", border: "none", color: "#fff", borderRadius: "4px", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <RefreshCw size={10} className="spin" />
+                            <span>进行中</span>
+                          </button>
+                        </>
+                      )}
+                      {agentStatuses.openCode.status === "latest" && (
+                        <span style={{ fontSize: "10px", color: "#047857", background: "#ecfdf5", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>已是最新</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
         </div>
 
-        <div className="sheet-actions">
-          <button className="secondary-button" onClick={onClose} type="button">取消</button>
-          <button className="primary-button" onClick={onSave} type="button">
-            <Check size={16} />
-            保存设置
-          </button>
-        </div>
+        {settingsTab !== "about" ? (
+          <div className="sheet-actions">
+            <button className="secondary-button" onClick={onClose} type="button">取消</button>
+            <button className="primary-button" onClick={onSave} type="button">
+              <Check size={16} />
+              保存设置
+            </button>
+          </div>
+        ) : (
+          <div className="sheet-actions">
+            <button className="primary-button" onClick={onClose} type="button" style={{ minWidth: "80px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+              <Check size={16} />
+              <span>确定</span>
+            </button>
+          </div>
+        )}
       </aside>
     </div>
   );

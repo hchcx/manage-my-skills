@@ -57,6 +57,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsDefaultTab, setSettingsDefaultTab] = useState<"data" | "agents" | "about">("data");
   const [hasScanned, setHasScanned] = useState(false);
   const [previouslyScanned, setPreviouslyScanned] = useState(false);
   const bootStartedRef = useRef(false);
@@ -74,14 +75,30 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  const agents = useMemo(
-    () =>
-      [...(inventory?.agents ?? [])].sort((left, right) => {
+  const agents = useMemo(() => {
+    const rawAgents = [...(inventory?.agents ?? [])];
+    const mapped = rawAgents.map((agent) => {
+      const enabled = settings.enabledAgentIds
+        ? settings.enabledAgentIds.includes(agent.id)
+        : agent.installed;
+      return { ...agent, enabled };
+    });
+
+    if (settings.agentOrder) {
+      const orderMap = new Map(settings.agentOrder.map((id, index) => [id, index]));
+      mapped.sort((left, right) => {
+        const idxA = orderMap.has(left.id) ? orderMap.get(left.id)! : 9999;
+        const idxB = orderMap.has(right.id) ? orderMap.get(right.id)! : 9999;
+        return idxA - idxB;
+      });
+    } else {
+      mapped.sort((left, right) => {
         if (left.installed !== right.installed) return left.installed ? -1 : 1;
         return left.label.localeCompare(right.label, undefined, { sensitivity: "base" });
-      }),
-    [inventory?.agents]
-  );
+      });
+    }
+    return mapped;
+  }, [inventory?.agents, settings.agentOrder, settings.enabledAgentIds]);
   const installedAgents = useMemo(() => agents.filter((agent) => agent.enabled), [agents]);
   const installedAgentIds = useMemo(() => new Set(installedAgents.map((agent) => agent.id)), [installedAgents]);
   const allSkills = inventory?.skills ?? [];
@@ -404,10 +421,44 @@ export default function App() {
     setError(null);
     try {
       const saved = await invoke<AppSettings>("save_settings", { settings: draftSettings });
+      
+      const libraryPathChanged = settings.libraryPath !== saved.libraryPath;
+      const customAgentsChanged = JSON.stringify(settings.customAgents) !== JSON.stringify(saved.customAgents);
+      const projectFoldersChanged = JSON.stringify(settings.projectFolders) !== JSON.stringify(saved.projectFolders);
+      
       setSettings(saved);
       setDraftSettings(saved);
       setSettingsOpen(false);
-      await refreshInventory();
+      
+      if (libraryPathChanged || customAgentsChanged || projectFoldersChanged) {
+        await refreshInventory();
+      } else {
+        // 如果只是启用了/禁用了 Agent 或是拖拽调整了排序，直接内存更新，避免重度磁盘 IO 扫描
+        setInventory((current) => {
+          if (!current) return null;
+          const orderMap = saved.agentOrder ? new Map(saved.agentOrder.map((id, index) => [id, index])) : null;
+          
+          const updatedAgents = current.agents.map((agent) => {
+            const enabled = saved.enabledAgentIds 
+              ? saved.enabledAgentIds.includes(agent.id) 
+              : agent.installed;
+            return { ...agent, enabled };
+          });
+          
+          if (orderMap) {
+            updatedAgents.sort((left, right) => {
+              const idxA = orderMap.has(left.id) ? orderMap.get(left.id)! : 9999;
+              const idxB = orderMap.has(right.id) ? orderMap.get(right.id)! : 9999;
+              return idxA - idxB;
+            });
+          }
+          
+          return {
+            ...current,
+            agents: updatedAgents
+          };
+        });
+      }
     } catch (reason) {
       setError(String(reason));
     } finally {
@@ -747,7 +798,7 @@ export default function App() {
     setBusy("");
 
     if (failCount > 0) {
-      alert(`更新完成。成功 ${successCount} 个，失败 ${failCount} 个。`);
+      setToast(`更新完成。成功 ${successCount} 个，失败 ${failCount} 个。`);
     } else {
       setToast(`已成功更新 ${successCount} 个技能`);
     }
@@ -759,7 +810,10 @@ export default function App() {
         <div className="tab-bar" aria-label="主导航">
           <button
             className="nav-avatar"
-            onClick={() => setSettingsOpen(true)}
+            onClick={() => {
+              setSettingsDefaultTab("data");
+              setSettingsOpen(true);
+            }}
             title="设置"
             type="button"
           >
@@ -847,7 +901,10 @@ export default function App() {
             onLinkDiscoveredProject={(path) => void addProjectPath(path)}
             onRemoveProject={(folder) => void removeProjectWorkspace(folder)}
             onShowToast={setToast}
-            onOpenSettings={() => setSettingsOpen(true)}
+            onOpenSettings={(tab) => {
+              setSettingsDefaultTab(tab || "data");
+              setSettingsOpen(true);
+            }}
           />
         ) : null}
 
@@ -880,6 +937,7 @@ export default function App() {
 
       {settingsOpen && (
         <SettingsSheet
+          defaultTab={settingsDefaultTab}
           settings={draftSettings}
           inventory={inventory}
           agents={agents.filter((a) => a.installed || draftSettings.customAgents?.some(ca => ca.id === a.id))}
@@ -890,6 +948,7 @@ export default function App() {
             setSettingsOpen(false);
           }}
           onSave={() => void saveSettings()}
+          onShowToast={setToast}
         />
       )}
     </main>

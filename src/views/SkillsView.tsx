@@ -94,7 +94,7 @@ export function SkillsView({
   onLinkDiscoveredProject: (path: string) => void;
   onRemoveProject: (folder: string) => void;
   onShowToast?: (message: string) => void;
-  onOpenSettings?: () => void;
+  onOpenSettings?: (defaultTab?: "data" | "agents" | "about") => void;
 }) {
   const [agentMenuOpen, setAgentMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -104,6 +104,14 @@ export function SkillsView({
 
   const [toggleBusy, setToggleBusy] = useState<string | null>(null);
   const [fixingAll, setFixingAll] = useState(false);
+
+  const showPrompt = (msg: string) => {
+    if (onShowToast) {
+      onShowToast(msg);
+    } else {
+      alert(msg);
+    }
+  };
 
   const [optimisticDeletedPaths, setOptimisticDeletedPaths] = useState<Set<string>>(new Set());
 
@@ -149,7 +157,7 @@ export function SkillsView({
       onRefresh(true);
     } catch (err) {
       await loadTrash();
-      alert(`恢复失败: ${err}`);
+      showPrompt(`恢复失败: ${err}`);
     }
   };
 
@@ -180,7 +188,7 @@ export function SkillsView({
         associatedPaths.forEach(p => next.delete(p));
         return next;
       });
-      alert(`删除失败: ${err}`);
+      showPrompt(`删除失败: ${err}`);
     }
   };
 
@@ -193,7 +201,7 @@ export function SkillsView({
       if (onShowToast) onShowToast("已彻底物理删除技能！");
       await loadTrash();
     } catch (err) {
-      alert(`彻底删除失败: ${err}`);
+      showPrompt(`彻底删除失败: ${err}`);
     }
   };
 
@@ -206,7 +214,7 @@ export function SkillsView({
       if (onShowToast) onShowToast("已清空回收站！");
       await loadTrash();
     } catch (err) {
-      alert(`清空回收站失败: ${err}`);
+      showPrompt(`清空回收站失败: ${err}`);
     }
   };
 
@@ -311,7 +319,7 @@ export function SkillsView({
       }
 
       if (!sourcePath) {
-        alert("无法同步：未找到该 Skill 的有效物理源路径，请先将其导入中心库或确保至少有一个非链接的本地副本。");
+        showPrompt("无法同步：未找到该 Skill 的有效物理源路径，请先将其导入中心库或确保至少有一个非链接的本地副本。");
         return;
       }
     }
@@ -320,7 +328,7 @@ export function SkillsView({
     try {
       await onToggleAgentSkill(skill, agentId, active, sourcePath);
     } catch (err) {
-      alert(`快捷同步操作失败:\n${err}`);
+      showPrompt(`快捷同步操作失败:\n${err}`);
     } finally {
       setToggleBusy(null);
     }
@@ -331,7 +339,7 @@ export function SkillsView({
     const inst = skill.installations.find(i => i.entryPath === entryPath);
     const expectedName = inst?.frontmatter?.name || skill.displayName;
     if (!expectedName) {
-      alert("无法修复：未找到期望的目标文件夹名称。");
+      showPrompt("无法修复：未找到期望的目标文件夹名称。");
       return;
     }
 
@@ -342,7 +350,7 @@ export function SkillsView({
       });
       onRefresh(true);
     } catch (err) {
-      alert(`修复名称失败:\n${err}`);
+      showPrompt(`修复名称失败:\n${err}`);
     }
   };
 
@@ -355,7 +363,7 @@ export function SkillsView({
       });
       onRefresh(true);
     } catch (err) {
-      alert(`创建 SKILL.md 失败:\n${err}`);
+      showPrompt(`创建 SKILL.md 失败:\n${err}`);
     }
   };
 
@@ -388,9 +396,9 @@ export function SkillsView({
     onRefresh(true);
 
     if (failCount > 0) {
-      alert(`一键修复完成。\n成功: ${successCount} 个\n失败: ${failCount} 个\n\n失败详情:\n${errors.join("\n")}`);
+      showPrompt(`一键修复完成。\n成功: ${successCount} 个\n失败: ${failCount} 个\n\n失败详情:\n${errors.join("\n")}`);
     } else {
-      alert(`成功修复了 ${successCount} 个 Skills 的文件夹名称冲突！`);
+      showPrompt(`成功修复了 ${successCount} 个 Skills 的文件夹名称冲突！`);
     }
   };
 
@@ -628,7 +636,7 @@ export function SkillsView({
             {onOpenSettings && (
               <button
                 className="icon-button plain"
-                onClick={onOpenSettings}
+                onClick={() => onOpenSettings("data")}
                 title="设置"
                 type="button"
               >
@@ -910,6 +918,8 @@ export function SkillsView({
                       onToggle={() => onToggleSkill(skill.id)}
                       onUpdate={() => onUpdateSkill(skill)}
                       onDeleteSkill={performDeleteSkill}
+                      onShowToast={onShowToast}
+                      onOpenSettings={onOpenSettings}
                     />
                     {expanded && (
                       <SkillDetail
@@ -1159,7 +1169,9 @@ function SkillRow({
   onSelect,
   onToggle,
   onUpdate,
-  onDeleteSkill
+  onDeleteSkill,
+  onShowToast,
+  onOpenSettings
 }: {
   skill: SkillRecord;
   agents: AgentRecord[];
@@ -1174,7 +1186,16 @@ function SkillRow({
   onToggle: () => void;
   onUpdate: () => void;
   onDeleteSkill: (localPath: string, displayName: string, associatedPaths: string[], beforeDelete: () => void) => Promise<void>;
+  onShowToast?: (message: string) => void;
+  onOpenSettings?: (defaultTab?: "data" | "agents" | "about") => void;
 }) {
+  const showPrompt = (msg: string) => {
+    if (onShowToast) {
+      onShowToast(msg);
+    } else {
+      alert(msg);
+    }
+  };
   return (
     <article className={`skill-row ${active ? "active" : ""}`} onClick={onSelect}>
       <label
@@ -1223,7 +1244,7 @@ function SkillRow({
           event.preventDefault();
           const localPath = skill.canonicalPath ?? firstValidInstallation(skill)?.entryPath;
           if (!localPath) {
-            alert("找不到该技能的本地路径，无法删除。");
+            showPrompt("找不到该技能的本地路径，无法删除。");
             return;
           }
           const associatedPaths = skill.installations
@@ -1236,6 +1257,7 @@ function SkillRow({
       >
         <Trash2 size={15} />
       </button>
+
     </article>
   );
 }
@@ -1422,35 +1444,6 @@ function SkillDetail({
         </DetailField>
       )}
 
-      {localPath && (
-        <div style={{ marginTop: "16px", borderTop: "1px solid rgba(24, 26, 29, 0.08)", paddingTop: "12px", display: "flex", justifyContent: "flex-end" }}>
-          <button
-            className="secondary-button"
-            onClick={async (event) => {
-              event.stopPropagation();
-              const associatedPaths = skill.installations
-                .map(inst => inst.entryPath)
-                .filter(p => p !== localPath);
-              await onDeleteSkill(localPath, skill.displayName || skill.slug, associatedPaths, () => onSelectSkill(null));
-            }}
-            style={{
-              borderColor: "rgba(220, 38, 38, 0.4)",
-              background: "rgba(220, 38, 38, 0.04)",
-              color: "#dc2626",
-              height: "28px",
-              fontSize: "12px",
-              padding: "0 10px",
-              display: "inline-flex",
-              alignItems: "center",
-              cursor: "pointer"
-            }}
-            type="button"
-          >
-            <Trash2 size={13} style={{ marginRight: "6px" }} />
-            删除此 Skill
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -203,7 +203,12 @@ function githubUrlFromDetail(detail: string) {
 }
 
 export function compactPath(path: string) {
-  return path.replace(/^\/Users\/[^/]+/, "~");
+  let result = path;
+  // 去除 Windows UNC 路径前缀 \\?\
+  result = result.replace(/^\\\\\?\\/, "");
+  result = result.replace(/^[a-zA-Z]:[/\\]users[/\\][^/\\]+/i, "~");
+  result = result.replace(/^\/users\/[^/]+/i, "~");
+  return result;
 }
 
 export function samePath(left: string, right: string) {

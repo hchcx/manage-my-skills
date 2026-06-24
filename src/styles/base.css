@@ -238,7 +238,7 @@ p {
   position: fixed;
   left: 50%;
   top: 118px;
-  z-index: 40;
+  z-index: 60;
   transform: translateX(-50%);
   min-height: 36px;
   padding: 8px 14px;

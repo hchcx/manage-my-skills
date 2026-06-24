@@ -20,6 +20,8 @@ serde_json = "1"
 sha2 = "0.10"
 tauri = { version = "2", features = ["macos-private-api"] }
 tauri-plugin-dialog = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 walkdir = "2"
 
 [dev-dependencies]
