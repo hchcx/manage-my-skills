@@ -1,0 +1,120 @@
+<div align="center">
+  <img src="agent-icons/m-my-skills-logo.png" alt="Manage My skills" width="120" />
+  <h1>Manage My skills</h1>
+  <p><b>跨平台的 AI Agent Skills 统一管理与安全同步工作台</b></p>
+  <p>支持 Windows & macOS ｜ 适用于 Claude Code, Cursor, Windsurf, Zed, Trae, Codex 等 20+ 编码助理</p>
+</div>
+
+**Manage My skills** 是一个极具设计感、跨平台的本地 Agent Skills 统一管理工具，帮助你在 Claude Code、Cursor、Windsurf、Zed、Codex、Trae 等多个 AI 编码工具之间，一键发现、比对、安全同步和健康诊断你的 Skills，避免优质技能散落各处。
+
+所有文件与链接的变更都经过「预览 → 确认 → 异步执行」流程，由高性能的 Rust 后端负责底层的磁盘与进程操作，安全可控、极速响应。
+
+---
+
+## 🌟 特性
+
+* **多平台原生体验**：
+  - **macOS**：完美的毛玻璃半透明窗口设计。
+  - **Windows**：深度适配 Windows 11/10，支持 Mica (云母) 与 Acrylic (亚克力) 原生磨砂特效，完全自适应系统效果。
+* **Agent 图标与状态自动发现**：开机自动扫描并盘点本机所有已安装的 AI 编码工具及其内置/外置的 Skills 目录。
+* **智能、无感、安全的同步引擎**：
+  - 支持 **全局 (Global)** 和 **项目级 (Project)** 作用域同步。
+  - 核心功能在启用/停用同步时自动识别同名物理目录，若内容不一致则采用**时间戳重命名安全备份机制**（`[目录名].bak_YYYYMMDD_HHMMSS`），确保你的开发源码 100% 安全。
+  - 深度支持 **Windows 符号链接 (Symlink)** 机制，且自动兼容 Windows 大小写不敏感文件系统中的大小写纠错与两步重命名，消除自删除 Bug。
+* **极速 Git 持久缓存与更新检查**：
+  - **并发限制队列**：前端采用 Worker 并发数限制为 3 的工作队列机制，有效消除网络和主渲染线程的拥堵，页面操作（如 Tab 切换）如丝般顺滑。
+  - **后端哈希缓存**：每个唯一的远程 Git URL 统一哈希并独立缓存在本地 `app_data_dir/cache/repos/` 中。
+  - **10秒防冲突锁 + 增量 fetch**：10 秒内的重复请求直接读取本地缓存，超过 10 秒则仅拉取 `git fetch --depth 1` 并重置，将更新检查从原本的数分钟瞬间优化到 **秒级** 响应。
+* **精细的更新状态与一键升级**：
+  - 详情页内联展示技能的最新版本状态（`checking` / `available` / `current` / `check-failed`）。
+  - **直观的报错卡片**：如果 Git 检查更新失败，将在详情中直接呈现淡红色的详细日志卡片，不用再悬浮看 Tooltip。
+  - 手动强刷按钮与重新扫描、Toast 完成提示一应俱全。
+* **问题诊断**：自动检测孤儿目录、损坏的软链接、重名命名冲突、SKILL.md 元数据缺失等，提供一键重命名修复。
+
+---
+
+## 🛠️ 支持的 Agent 编码助理
+
+* **Claude Code** (`.claude/skills/`)
+* **Cursor** (`.cursor/skills/`)
+* **Zed** (`.zed/skills/`)
+* **Windsurf** (`.windsurf/skills/`)
+* **Codex** (`.codex/skills/`)
+* **Trae**, **Cline**, **Gemini CLI**, **GitHub Copilot**, **OpenCode**, **Warp**, **Qoder**, **Antigravity**, **Augment** 等 20+ 工具。
+
+---
+
+## 🚀 安装
+
+### macOS
+1. 从 GitHub Releases 下载最新的 `Manage My skills_*.dmg`。
+2. 双击打开并拖入「应用程序」文件夹。
+3. 首次启动可能需要在「系统设置 → 隐私与安全性」中手动允许。
+
+### Windows
+1. 下载打包好的安装包或便携版 `.exe` 运行即可。
+2. *注意：在 Windows 上使用软链接（Symlink）同步时，请以管理员身份运行应用，或在 Windows 系统中开启「开发人员模式」（Developer Mode）。*
+
+---
+
+## 🏗️ 从源码构建与开发
+
+### 前置要求
+- **Node.js** ≥ 18
+- **Rust**（推荐通过 rustup 安装）
+
+### 启动开发环境
+```bash
+git clone https://github.com/你的用户名/manage-my-skills.git
+cd manage-my-skills
+npm install
+
+# 启动开发服务器（包含前端 HMR 和 Rust 热重载）
+npm run tauri:dev
+```
+
+### 运行测试
+```bash
+# 仅前端
+npm run dev
+
+# 运行 Rust 单元测试
+npm run test:rust
+
+# 完整冒烟测试（执行打包构建校验 + 运行全部测试用例）
+npm run smoke
+```
+
+### 本地编译打包
+编译生产环境安装包（会自动生成符合当前系统平台的文件）：
+```bash
+npm run tauri:build
+```
+打包输出路径位于 `src-tauri/target/release/bundle/` 下的对应平台目录。
+
+---
+
+## 📡 自动化 CI 部署
+
+项目在 `.github/workflows/ci.yml` 中集成了 GitHub Actions：
+* 每次提交代码或提交 PR 到 `main` 分支时，自动运行 TypeScript 类型校验、前端静态构建与 Rust 测试。
+* 后续配合发布 Tag 标签即可自动构建 Windows / macOS 双端 Release 发布包，并将产物自动上传到 GitHub Releases 中，方便用户开箱即用。
+
+---
+
+## 💻 技术栈
+
+* **前端 (Frontend)**：React 18 + TypeScript + Vite + Tailwind CSS + Lucide Icons + Radix UI
+* **客户端 (Client)**：Tauri v2 (Rust)
+* **核心逻辑 (Core)**：Rust (`walkdir`, `serde` 序列化映射, `tokio` 异步执行与多线程底层分流)
+* **设计原则 (Design)**：Quiet & Native 桌面级效率工具风格
+
+---
+
+## 📄 开源协议
+
+暂无（后续会补充 MIT / Apache-2.0）。
+
+---
+
+**Manage My skills** — 让你的 AI 编码技能融会贯通，不再散落各处。

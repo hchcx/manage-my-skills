@@ -1,0 +1,248 @@
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  background: rgba(35, 37, 40, 0.34);
+  backdrop-filter: blur(14px) saturate(120%);
+}
+
+.settings-sheet {
+  display: grid;
+  width: min(760px, calc(100vw - 56px));
+  max-height: min(760px, calc(100vh - 56px));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0;
+  overflow: hidden;
+  border-color: rgba(24, 26, 29, 0.16);
+  background: rgba(250, 251, 252, 0.82);
+  box-shadow: 0 28px 100px rgba(22, 24, 26, 0.24);
+}
+
+.settings-sheet .pane-title {
+  margin: 0;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid rgba(24, 26, 29, 0.10);
+}
+
+.settings-sheet .pane-title h1 {
+  font-size: 25px;
+}
+
+.settings-sheet .pane-title p {
+  max-width: 520px;
+}
+
+.settings-content {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 24px 18px;
+}
+
+.settings-section {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(24, 26, 29, 0.10);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.settings-section > h2,
+.settings-section .section-heading h2 {
+  color: rgba(23, 25, 28, 0.68);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.settings-section .field input {
+  height: 40px;
+  background: rgba(24, 26, 29, 0.06);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.switch-row input {
+  width: 17px;
+  height: 17px;
+  accent-color: #2f3338;
+}
+
+.settings-path-list {
+  display: grid;
+  gap: 6px;
+  max-height: 190px;
+  min-width: 0;
+  overflow: auto;
+}
+
+.settings-section .path-row {
+  min-width: 0;
+  background: rgba(24, 26, 29, 0.06);
+}
+
+.path-row code {
+  min-width: 0;
+  flex: 1;
+}
+
+.settings-section .path-code {
+  min-width: 0;
+  padding: 10px 11px;
+  background: rgba(24, 26, 29, 0.06);
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 12px 18px;
+  border-bottom: 1px solid rgba(24, 26, 29, 0.10);
+  background: rgba(250, 251, 252, 0.6);
+}
+
+.settings-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(24, 26, 29, 0.06);
+}
+
+.settings-tabs button {
+  padding: 0 13px;
+  min-height: 28px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(23, 25, 28, 0.65);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.settings-tabs button.active {
+  background: #2f3338;
+  color: #f9fafb;
+}
+
+.settings-agents-pane {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-agent-list {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-agent-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(24, 26, 29, 0.08);
+  font-size: 13px;
+}
+
+.settings-agent-row strong {
+  flex: 1;
+  font-weight: 700;
+}
+
+.settings-agent-row.rich {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+}
+
+.settings-agent-row.rich .agent-main {
+  display: block;
+}
+
+.settings-agent-row.rich .agent-main strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-agent-row.rich .agent-main small {
+  display: block;
+  margin-top: 1px;
+  color: rgba(23, 25, 28, 0.58);
+  font-size: 11px;
+}
+
+.settings-agent-row.rich .agent-count {
+  text-align: right;
+  margin-right: 4px;
+}
+
+.settings-agent-row.rich .agent-count strong {
+  font-size: 14px;
+}
+
+.settings-agent-empty {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--app-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings-agent-hint {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--app-muted);
+  text-align: center;
+}
+
+.sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 24px;
+  border-top: 1px solid rgba(24, 26, 29, 0.10);
+  background: rgba(250, 251, 252, 0.78);
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
