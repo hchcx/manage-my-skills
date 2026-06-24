@@ -888,6 +888,7 @@ export function SkillsView({
               <span>Skill</span>
               <span>Agent 覆盖</span>
               <span>状态</span>
+              <span />
             </div>
 
             <div className="skill-list">
