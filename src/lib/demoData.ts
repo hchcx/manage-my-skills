@@ -98,6 +98,7 @@ export function demoAgent(
     symlinkSupport: true,
     priority: 1,
     installed,
+    enabled: installed,
     status,
     detectionSources: kinds.map((kind) => ({
       kind,

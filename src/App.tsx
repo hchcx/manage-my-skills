@@ -82,7 +82,7 @@ export default function App() {
       }),
     [inventory?.agents]
   );
-  const installedAgents = useMemo(() => agents.filter((agent) => agent.installed), [agents]);
+  const installedAgents = useMemo(() => agents.filter((agent) => agent.enabled), [agents]);
   const installedAgentIds = useMemo(() => new Set(installedAgents.map((agent) => agent.id)), [installedAgents]);
   const allSkills = inventory?.skills ?? [];
   const projectFolders = settings.projectFolders;

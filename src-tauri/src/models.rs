@@ -3,6 +3,15 @@ use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+pub struct CustomAgent {
+    pub id: String,
+    pub label: String,
+    pub global_roots: Vec<String>,
+    pub project_roots: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub library_path: String,
     pub project_folders: Vec<String>,
@@ -10,6 +19,24 @@ pub struct Settings {
     pub show_raw_paths: bool,
     #[serde(default = "default_language")]
     pub language: String,
+    #[serde(default)]
+    pub enabled_agent_ids: Option<Vec<String>>,
+    #[serde(default)]
+    pub custom_agents: Option<Vec<CustomAgent>>,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            library_path: String::new(),
+            project_folders: vec![],
+            custom_roots: vec![],
+            show_raw_paths: false,
+            language: "zh-CN".to_string(),
+            enabled_agent_ids: None,
+            custom_agents: None,
+        }
+    }
 }
 
 pub fn default_language() -> String {
@@ -66,6 +93,7 @@ pub struct AgentRecord {
     pub symlink_support: bool,
     pub priority: u16,
     pub installed: bool,
+    pub enabled: bool,
     pub status: String,
     pub detection_sources: Vec<AgentDetectionSource>,
     pub skill_roots: Vec<ResolvedRoot>,

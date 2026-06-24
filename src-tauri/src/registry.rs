@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 const PROJECT_DISCOVERY_DEPTH: usize = 2;
 
-pub fn known_agents() -> Vec<AgentDefinition> {
+pub fn known_agents(settings: &Settings) -> Vec<AgentDefinition> {
     let mut agents = vec![
         agent(
             "amp",
@@ -307,12 +307,28 @@ pub fn known_agents() -> Vec<AgentDefinition> {
         ),
     ];
 
+    if let Some(custom) = &settings.custom_agents {
+        for ca in custom {
+            agents.push(AgentDefinition {
+                id: ca.id.clone(),
+                label: ca.label.clone(),
+                global_roots: ca.global_roots.clone(),
+                project_roots: ca.project_roots.clone(),
+                active_signals: vec![],
+                cli_names: vec![],
+                app_paths: vec![],
+                priority: 200,
+                symlink_support: true,
+            });
+        }
+    }
+
     agents.sort_by_key(|agent| (agent.priority, agent.label.clone()));
     agents
 }
 
 pub fn detect_agents(settings: &Settings, include_orphaned: bool) -> Vec<AgentRecord> {
-    let definitions = known_agents();
+    let definitions = known_agents(settings);
     let install_map = definitions
         .iter()
         .map(|definition| (definition.id.clone(), detect_install_sources(definition)))
@@ -330,6 +346,10 @@ pub fn detect_agents(settings: &Settings, include_orphaned: bool) -> Vec<AgentRe
         .map(|definition| {
             let detection_sources = install_map.get(&definition.id).cloned().unwrap_or_default();
             let installed = has_install_evidence(&detection_sources);
+            let enabled = match &settings.enabled_agent_ids {
+                Some(ids) => ids.contains(&definition.id),
+                None => installed,
+            };
             let skill_roots = roots
                 .iter()
                 .filter(|root| root.agent_id == definition.id)
@@ -357,6 +377,7 @@ pub fn detect_agents(settings: &Settings, include_orphaned: bool) -> Vec<AgentRe
                 symlink_support: definition.symlink_support,
                 priority: definition.priority,
                 installed,
+                enabled,
                 status: status.to_string(),
                 detection_sources,
                 skill_roots,
@@ -370,7 +391,7 @@ pub fn detect_agents(settings: &Settings, include_orphaned: bool) -> Vec<AgentRe
 }
 
 pub fn resolve_roots(settings: &Settings, include_orphaned: bool) -> Vec<ResolvedRoot> {
-    let definitions = known_agents();
+    let definitions = known_agents(settings);
     let install_map = definitions
         .iter()
         .map(|definition| (definition.id.clone(), detect_install_sources(definition)))
@@ -378,8 +399,8 @@ pub fn resolve_roots(settings: &Settings, include_orphaned: bool) -> Vec<Resolve
     resolve_roots_for_definitions(&definitions, settings, include_orphaned, &install_map, true)
 }
 
-pub fn find_agent(id: &str) -> Option<AgentDefinition> {
-    known_agents().into_iter().find(|agent| agent.id == id)
+pub fn find_agent(settings: &Settings, id: &str) -> Option<AgentDefinition> {
+    known_agents(settings).into_iter().find(|agent| agent.id == id)
 }
 
 pub fn discover_project_workspaces(
@@ -400,7 +421,7 @@ pub fn discover_project_workspaces(
         ));
     }
 
-    let definitions = known_agents();
+    let definitions = known_agents(settings);
     let mut candidates = Vec::new();
     collect_project_candidates(&base, 0, &definitions, settings, &mut candidates)?;
     candidates.sort_by_key(|candidate| {
@@ -1148,7 +1169,7 @@ mod tests {
 
     #[test]
     fn known_agents_include_all_default_tools() {
-        let agents = known_agents();
+        let agents = known_agents(&Settings::default());
         let labels: Vec<String> = agents.iter().map(|agent| agent.label.clone()).collect();
         assert_eq!(agents.len(), 27);
         assert!(labels.contains(&"AMP".to_string()));
@@ -1182,7 +1203,7 @@ mod tests {
 
     #[test]
     fn shared_agents_root_does_not_mark_agents_installed() {
-        let agents = known_agents();
+        let agents = known_agents(&Settings::default());
         for id in ["grok-cli", "zed"] {
             let agent = agents.iter().find(|agent| agent.id == id).expect("agent");
             assert!(!agent.active_signals.contains(&"~/.agents".to_string()));
@@ -1227,7 +1248,7 @@ mod tests {
 
     #[test]
     fn app_names_are_derived_from_explicit_app_paths() {
-        let agent = known_agents()
+        let agent = known_agents(&Settings::default())
             .into_iter()
             .find(|agent| agent.id == "trae")
             .expect("trae");
@@ -1336,6 +1357,8 @@ enabled = true
             custom_roots: Vec::new(),
             show_raw_paths: false,
             language: "zh-CN".to_string(),
+            enabled_agent_ids: None,
+            custom_agents: None,
         };
         let candidates =
             discover_project_workspaces(&path_to_string(temp.path()), &settings).expect("discover");

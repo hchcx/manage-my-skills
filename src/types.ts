@@ -4,12 +4,21 @@ export type Settings = {
   customRoots: CustomRoot[];
   showRawPaths: boolean;
   language: string;
+  enabledAgentIds?: string[];
+  customAgents?: CustomAgent[];
 };
 
 export type CustomRoot = {
   id: string;
   label: string;
   path: string;
+};
+
+export type CustomAgent = {
+  id: string;
+  label: string;
+  globalRoots: string[];
+  projectRoots: string[];
 };
 
 export type AgentDetectionSource = {
@@ -30,6 +39,7 @@ export type AgentRecord = {
   symlinkSupport: boolean;
   priority: number;
   installed: boolean;
+  enabled: boolean;
   status: string;
   detectionSources: AgentDetectionSource[];
   skillRoots: ResolvedRoot[];

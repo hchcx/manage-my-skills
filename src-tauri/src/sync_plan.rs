@@ -487,7 +487,7 @@ fn append_quick_migration_operations(
     };
 
     for target in targets {
-        let Some(agent) = find_agent(&target.agent_id) else {
+        let Some(agent) = find_agent(settings, &target.agent_id) else {
             blocked_conflicts.push(format!("Unknown agent id '{}'", target.agent_id));
             continue;
         };
@@ -583,7 +583,7 @@ fn append_sync_operations(
     };
 
     for target in targets {
-        let Some(agent) = find_agent(&target.agent_id) else {
+        let Some(agent) = find_agent(settings, &target.agent_id) else {
             blocked_conflicts.push(format!("Unknown agent id '{}'", target.agent_id));
             continue;
         };

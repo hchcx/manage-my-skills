@@ -1100,7 +1100,7 @@ function SkillAgentStack({
   toggleBusy: string | null;
   onToggleSync: (event: React.MouseEvent, agentId: string, active: boolean) => void;
 }) {
-  const installedAgents = agents.filter((a) => a.installed);
+  const installedAgents = agents.filter((a) => a.enabled);
 
   return (
     <div className="skill-agent-stack" aria-label="已安装 Agent" style={{ display: "flex", gap: "8px", alignItems: "center" }}>

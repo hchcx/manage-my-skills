@@ -425,7 +425,7 @@ pub fn toggle_agent_skill(
     source_path: Option<String>,
 ) -> Result<(), String> {
     let settings = settings::load_settings(&app)?;
-    let Some(agent) = registry::find_agent(&agent_id) else {
+    let Some(agent) = registry::find_agent(&settings, &agent_id) else {
         return Err(format!("未找到 Agent: {}", agent_id));
     };
 

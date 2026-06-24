@@ -27,6 +27,8 @@ pub fn default_settings(app: &AppHandle) -> Result<Settings, String> {
         custom_roots: Vec::<CustomRoot>::new(),
         show_raw_paths: false,
         language: "zh-CN".to_string(),
+        enabled_agent_ids: None,
+        custom_agents: None,
     })
 }
 
