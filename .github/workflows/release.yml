@@ -42,3 +42,4 @@ jobs:
           releaseBody: 'See the assets to download this version.'
           releaseDraft: true
           prerelease: false
+          includeUpdater: true
