@@ -388,7 +388,7 @@ pub fn detect_agents(settings: &Settings, include_orphaned: bool) -> Vec<AgentRe
         })
         .collect::<Vec<_>>();
 
-    records.sort_by_key(|agent| (!agent.installed, agent.label.to_ascii_lowercase()));
+    records.sort_by_key(|agent| (agent.priority, agent.label.to_ascii_lowercase()));
     records
 }
 
