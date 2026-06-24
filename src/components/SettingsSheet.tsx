@@ -293,7 +293,7 @@ export function SettingsSheet({
 
                     const handleDelete = (e: React.MouseEvent) => {
                       e.stopPropagation();
-                      if (confirm(`确定要删除自定义 Agent "${agent.label}" 吗？`)) {
+                      if (confirm(`确定要删除自定义 Agent "${agent.label}" 吗？删除后将不可恢复。`)) {
                         const newCustom = (settings.customAgents || []).filter(ca => ca.id !== agent.id);
                         const newEnabled = (settings.enabledAgentIds || displayAgents.map(a => a.id)).filter(id => id !== agent.id);
                         const newOrder = (settings.agentOrder || []).filter(id => id !== agent.id);
