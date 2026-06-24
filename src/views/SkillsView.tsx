@@ -418,7 +418,7 @@ export function SkillsView({
                   color: "#ea580c",
                   height: "28px"
                 }}
-                title="一键将所有有新版本可用的技能更新为远程最新版本"
+                title="一键更新所有检测到有新版本的技能"
                 type="button"
               >
                 {Array.from(updatingSkillIds).length > 0 ? (
@@ -429,7 +429,7 @@ export function SkillsView({
                 ) : (
                   <>
                     <ArrowUpCircle size={13} style={{ marginRight: '6px' }} />
-                    一键更新全部 ({availableUpdatesCount})
+                    一键更新可用 ({availableUpdatesCount})
                   </>
                 )}
               </button>
