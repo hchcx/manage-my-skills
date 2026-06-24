@@ -32,7 +32,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg"],
+    "targets": ["nsis", "app", "dmg"],
     "icon": ["icons/icon.png"]
   },
   "plugins": {
