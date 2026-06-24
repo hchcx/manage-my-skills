@@ -150,22 +150,23 @@ export function SkillsView({
     }
   };
 
-  const performDeleteSkill = async (localPath: string, displayName: string, beforeDelete: () => void) => {
+  const performDeleteSkill = async (localPath: string, displayName: string, associatedPaths: string[], beforeDelete: () => void) => {
     if (!window.confirm(`确定要将技能 "${displayName}" 移入回收站吗？\n删除后您可以在 30 天内随时恢复。`)) {
       return;
     }
 
-    // 1. 乐观更新：本地直接剔除
+    // 1. 乐观更新：本地直接剔除主体路径和关联路径
     setOptimisticDeletedPaths((prev) => {
       const next = new Set(prev);
       next.add(localPath);
+      associatedPaths.forEach(p => next.add(p));
       return next;
     });
     // 2. 收起列表卡片或返回
     beforeDelete();
 
     try {
-      await invoke("delete_skill", { path: localPath });
+      await invoke("delete_skill", { path: localPath, associatedPaths });
       if (onShowToast) onShowToast("技能已成功移入回收站！");
       onRefresh(true);
     } catch (err) {
@@ -173,6 +174,7 @@ export function SkillsView({
       setOptimisticDeletedPaths((prev) => {
         const next = new Set(prev);
         next.delete(localPath);
+        associatedPaths.forEach(p => next.delete(p));
         return next;
       });
       alert(`删除失败: ${err}`);
@@ -1102,9 +1104,24 @@ function SkillAgentStack({
 }) {
   const installedAgents = agents.filter((a) => a.enabled);
 
+  // 动态排序：已点亮（active）的 Agent 排在前面，未点亮的排在后面
+  const sortedAgents = useMemo(() => {
+    return [...installedAgents].sort((left, right) => {
+      const leftActive = skill.installations.some((inst) => inst.agentId === left.id);
+      const rightActive = skill.installations.some((inst) => inst.agentId === right.id);
+      if (leftActive !== rightActive) {
+        return leftActive ? -1 : 1;
+      }
+      return 0;
+    });
+  }, [installedAgents, skill.installations]);
+
+  // 最多显示 6 个图标
+  const displayAgents = sortedAgents.slice(0, 6);
+
   return (
     <div className="skill-agent-stack" aria-label="已安装 Agent" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-      {installedAgents.map((agent) => {
+      {displayAgents.map((agent) => {
         const active = skill.installations.some((inst) => inst.agentId === agent.id);
         const isCurrentlyBusy = toggleBusy === `${skill.slug}-${agent.id}`;
         return (
@@ -1149,7 +1166,7 @@ function SkillRow({
   onSelect: () => void;
   onToggle: () => void;
   onUpdate: () => void;
-  onDeleteSkill: (localPath: string, displayName: string, beforeDelete: () => void) => Promise<void>;
+  onDeleteSkill: (localPath: string, displayName: string, associatedPaths: string[], beforeDelete: () => void) => Promise<void>;
 }) {
   return (
     <article className={`skill-row ${active ? "active" : ""}`} onClick={onSelect}>
@@ -1202,7 +1219,10 @@ function SkillRow({
             alert("找不到该技能的本地路径，无法删除。");
             return;
           }
-          await onDeleteSkill(localPath, skill.displayName || skill.slug, onSelect);
+          const associatedPaths = skill.installations
+            .map(inst => inst.entryPath)
+            .filter(p => p !== localPath);
+          await onDeleteSkill(localPath, skill.displayName || skill.slug, associatedPaths, onSelect);
         }}
         title="移入回收站"
         type="button"
@@ -1278,7 +1298,7 @@ function SkillDetail({
   onUpdate: () => void;
   onResolveIssue: (issue: any) => void;
   onSelectSkill: (id: string | null) => void;
-  onDeleteSkill: (localPath: string, displayName: string, beforeDelete: () => void) => Promise<void>;
+  onDeleteSkill: (localPath: string, displayName: string, associatedPaths: string[], beforeDelete: () => void) => Promise<void>;
 }) {
   const source = skillSourceSummary(skill, skillLocks);
   const sourceInstallation = firstValidInstallation(skill);
@@ -1401,7 +1421,10 @@ function SkillDetail({
             className="secondary-button"
             onClick={async (event) => {
               event.stopPropagation();
-              await onDeleteSkill(localPath, skill.displayName || skill.slug, () => onSelectSkill(null));
+              const associatedPaths = skill.installations
+                .map(inst => inst.entryPath)
+                .filter(p => p !== localPath);
+              await onDeleteSkill(localPath, skill.displayName || skill.slug, associatedPaths, () => onSelectSkill(null));
             }}
             style={{
               borderColor: "rgba(220, 38, 38, 0.4)",

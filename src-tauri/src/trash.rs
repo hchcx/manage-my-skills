@@ -90,7 +90,11 @@ fn extract_skill_name(skill_dir: &Path) -> Option<String> {
 }
 
 #[tauri::command]
-pub async fn delete_skill(app: AppHandle, path: String) -> Result<TrashItem, String> {
+pub async fn delete_skill(
+    app: AppHandle,
+    path: String,
+    associated_paths: Vec<String>,
+) -> Result<TrashItem, String> {
     let source_path = PathBuf::from(&path);
     if !source_path.exists() {
         return Err(format!("Skill path does not exist: {}", path));
@@ -107,6 +111,16 @@ pub async fn delete_skill(app: AppHandle, path: String) -> Result<TrashItem, Str
 
     let trash_item_dir = trash_dir(&app)?.join(&id);
     move_dir(&source_path, &trash_item_dir)?;
+
+    // 清理所有关联的安装路径
+    for assoc_path_str in associated_paths {
+        let assoc_path = PathBuf::from(&assoc_path_str);
+        if assoc_path.exists() {
+            if let Err(e) = remove_entry(&assoc_path) {
+                println!("Failed to remove associated path {}: {}", assoc_path_str, e);
+            }
+        }
+    }
 
     let mut index = load_trash_index(&app)?;
     let item = TrashItem {
