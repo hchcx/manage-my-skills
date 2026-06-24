@@ -4,6 +4,7 @@ import { Fragment, useEffect, useRef, useState, useMemo, type ReactNode } from "
 import { agentIconAsset } from "../agentIconRegistry";
 import { AgentEmptyVisual, ProjectEmptyVisual } from "../components/EmptyStateVisuals";
 import { AgentBadge, AgentIcon, Coverage, IssueList, SkillState } from "../components/shared";
+import defaultLogo from "../m-my-skills-logo.png";
 import { demoAgent } from "../lib/demoData";
 import { isTauriRuntime } from "../lib/runtime";
 import { agentSkillCount, compactPath, firstValidInstallation, projectName, projectStats, skillListStatus, skillSourceSummary, skillsShUpdateSource } from "../lib/skillUtils";
@@ -1065,8 +1066,8 @@ function InteractiveAgentIcon({
   onClick: (e: React.MouseEvent) => void;
 }) {
   const icon = agentIconAsset(agent.id);
-  const fallback = agent.label.slice(0, 2).toUpperCase();
   const iconStyle = icon?.size ? ({ "--agent-icon-size": `${icon.size}px` } as React.CSSProperties) : undefined;
+  const imgSrc = icon?.src || agent.iconData || defaultLogo;
 
   return (
     <button
@@ -1094,11 +1095,18 @@ function InteractiveAgentIcon({
       title={loading ? "处理中..." : active ? `从 ${agent.label} 解除同步` : `同步到 ${agent.label}`}
       type="button"
     >
-      {icon ? (
-        <img alt="" aria-hidden="true" src={icon.src} style={iconStyle} />
-      ) : (
-        <em>{fallback}</em>
-      )}
+      <img
+        alt={agent.label}
+        aria-hidden="true"
+        src={imgSrc}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          borderRadius: "4px",
+          ...iconStyle
+        }}
+      />
     </button>
   );
 }
