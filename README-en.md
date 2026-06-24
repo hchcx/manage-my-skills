@@ -173,7 +173,7 @@ The project features integration with GitHub Actions via `.github/workflows/ci.y
 
 ## 💬 Community & Support
 
-You are welcome to join the AI Community Group (QQ Group: 1091305103) to submit issues, share feedback, or suggest new features.
+You are welcome to join the AI Community Group (QQ Group: 1091305103, Click link to join group chat: https://qm.qq.com/q/z5iGv1PUoU) to submit issues, share feedback, or suggest new features.
 
 If **Manage My Skills** has been helpful to you, feel free to buy me a coffee or show some support to keep the maintenance going:
 
@@ -185,15 +185,7 @@ If **Manage My Skills** has been helpful to you, feel free to buy me a coffee or
 
 This open-source project is linked with and recognized by the LINUX DO community:
 
-* **LINUX DO**: https://linux.do/
-
-Thanks to Headroom for the compression algorithms and architecture vendored into Marginalia's built-in compression path.
-
----
-
-## 📄 License
-
-TBD (likely MIT / Apache-2.0).
+- **LINUX DO**: https://linux.do/
 
 ---
 
