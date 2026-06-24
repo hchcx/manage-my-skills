@@ -9,6 +9,8 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::io::{BufRead, BufReader};
 use tauri::{AppHandle, Emitter};
 use sha2::{Sha256, Digest};
@@ -300,10 +302,14 @@ fn checkout_repo(
     let repo_path = cache_repos_root.join(cache_dir_name);
 
     if !repo_path.exists() {
-        let status = Command::new("git")
-            .args(["clone", "--depth", "1", &clone_url])
-            .arg(&repo_path)
-            .status()
+        let mut cmd = Command::new("git");
+        cmd.args(["clone", "--depth", "1", &clone_url])
+           .arg(&repo_path);
+        #[cfg(target_os = "windows")]
+        {
+            cmd.creation_flags(0x08000000);
+        }
+        let status = cmd.status()
             .map_err(|error| format!("Unable to clone {clone_url}: {error}"))?;
         if !status.success() {
             return Err(format!(
@@ -334,10 +340,14 @@ fn checkout_repo(
 
         if should_fetch {
             // 秒级增量更新
-            let status = Command::new("git")
-                .args(["fetch", "--depth", "1"])
-                .current_dir(&repo_path)
-                .status()
+            let mut fetch_cmd = Command::new("git");
+            fetch_cmd.args(["fetch", "--depth", "1"])
+                     .current_dir(&repo_path);
+            #[cfg(target_os = "windows")]
+            {
+                fetch_cmd.creation_flags(0x08000000);
+            }
+            let status = fetch_cmd.status()
                 .map_err(|error| format!("Unable to fetch {clone_url}: {error}"))?;
             if !status.success() {
                 return Err(format!(
@@ -345,10 +355,14 @@ fn checkout_repo(
                 ));
             }
 
-            let status = Command::new("git")
-                .args(["reset", "--hard", "FETCH_HEAD"])
-                .current_dir(&repo_path)
-                .status()
+            let mut reset_cmd = Command::new("git");
+            reset_cmd.args(["reset", "--hard", "FETCH_HEAD"])
+                     .current_dir(&repo_path);
+            #[cfg(target_os = "windows")]
+            {
+                reset_cmd.creation_flags(0x08000000);
+            }
+            let status = reset_cmd.status()
                 .map_err(|error| format!("Unable to reset {clone_url}: {error}"))?;
             if !status.success() {
                 return Err(format!(
@@ -911,6 +925,10 @@ fn run_command_in_shell(bin_name: &str, args: &[&str]) -> Result<String, String>
     let mut cmd = if cfg!(target_os = "windows") {
         let mut c = Command::new("cmd");
         c.arg("/C").arg(bin_name);
+        #[cfg(target_os = "windows")]
+        {
+            c.creation_flags(0x08000000);
+        }
         c
     } else {
         Command::new(bin_name)
@@ -1105,6 +1123,10 @@ pub async fn run_agent_cli_install(
         let mut cmd = if cfg!(target_os = "windows") {
             let mut c = Command::new("cmd");
             c.args(&["/C", &format!("npm install -g {npm_pkg} --force")]);
+            #[cfg(target_os = "windows")]
+            {
+                c.creation_flags(0x08000000);
+            }
             c
         } else {
             let mut c = Command::new("npm");
