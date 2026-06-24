@@ -18,27 +18,27 @@
 
 |                          全局工作区 (Global)                           |                          项目工作区 - 初始状态 (Project)                          |
 | :--------------------------------------------------------------------: | :-------------------------------------------------------------------------------: |
-| ![全局工作区](src-tauri/icons/images/Snipaste_2026-06-24_20-49-59.png) | ![项目工作区 - 初始状态](src-tauri/icons/images/Snipaste_2026-06-24_20-50-10.png) |
+| ![全局工作区](https://anta.obs.cn-south-1.myhuaweicloud.com/icon/Snipaste_2026-06-24_20-49-59.png) | ![项目工作区 - 初始状态](https://anta.obs.cn-south-1.myhuaweicloud.com/icon/Snipaste_2026-06-24_20-50-10.png) |
 
 ### 2. 发现技能商店 & 分发流程
 
 |                           技能商店 (Store)                           |                       技能分发 - Agent 选择 (Distribution)                        |
 | :------------------------------------------------------------------: | :-------------------------------------------------------------------------------: |
-| ![技能商店](src-tauri/icons/images/Snipaste_2026-06-24_20-51-03.png) | ![技能分发 - Agent 选择](src-tauri/icons/images/Snipaste_2026-06-24_20-51-14.png) |
+| ![技能商店](https://anta.obs.cn-south-1.myhuaweicloud.com/icon/Snipaste_2026-06-24_20-51-03.png) | ![技能分发 - Agent 选择](https://anta.obs.cn-south-1.myhuaweicloud.com/icon/Snipaste_2026-06-24_20-51-14.png) |
 
 |                               技能分发 - 生效范围与方式                               |                               Git 仓库源配置                               |
 | :-----------------------------------------------------------------------------------: | :------------------------------------------------------------------------: |
-| ![技能分发 - 生效范围与方式](src-tauri/icons/images/Snipaste_2026-06-24_20-51-20.png) | ![Git 仓库源配置](src-tauri/icons/images/Snipaste_2026-06-24_20-51-33.png) |
+| ![技能分发 - 生效范围与方式](https://anta.obs.cn-south-1.myhuaweicloud.com/icon/Snipaste_2026-06-24_20-51-20.png) | ![Git 仓库源配置](https://anta.obs.cn-south-1.myhuaweicloud.com/icon/Snipaste_2026-06-24_20-51-33.png) |
 
 ### 3. 系统配置 & 环境健康度
 
 |                         数据与窗口设置 (Settings)                          |                               自定义 Agent 注册                               |
 | :------------------------------------------------------------------------: | :---------------------------------------------------------------------------: |
-| ![数据与窗口设置](src-tauri/icons/images/Snipaste_2026-06-24_20-50-18.png) | ![自定义 Agent 注册](src-tauri/icons/images/Snipaste_2026-06-24_20-50-26.png) |
+| ![数据与窗口设置](https://anta.obs.cn-south-1.myhuaweicloud.com/icon/Snipaste_2026-06-24_20-50-18.png) | ![自定义 Agent 注册](https://anta.obs.cn-south-1.myhuaweicloud.com/icon/Snipaste_2026-06-24_20-50-26.png) |
 
 |                               关于我们 & 环境健康检查                               |
 | :---------------------------------------------------------------------------------: |
-| ![关于我们 & 环境健康检查](src-tauri/icons/images/Snipaste_2026-06-24_20-50-34.png) |
+| ![关于我们 & 环境健康检查](https://anta.obs.cn-south-1.myhuaweicloud.com/icon/Snipaste_2026-06-24_20-50-34.png) |
 
 </details>
 
