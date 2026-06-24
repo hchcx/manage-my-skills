@@ -11,7 +11,7 @@ All filesystem mutations go through a strict **Preview → Confirm → Async App
 
 ## 🖼️ Screenshots
 
-<details>
+<details open>
 <summary>💡 Click to expand and view all 9 screenshots</summary>
 
 ### 1. Skills Management & Workspaces

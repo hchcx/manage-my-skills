@@ -11,7 +11,7 @@
 
 ## 🖼️ 界面预览 (Screenshots)
 
-<details>
+<details open>
 <summary>💡 点击展开查看全部 9 张功能截图</summary>
 
 ### 1. Skills 管理 & 工作区
