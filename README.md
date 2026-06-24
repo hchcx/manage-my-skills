@@ -178,9 +178,17 @@ npm run release -- 0.2.2
 
 如果 **Manage My Skills** 帮到了你，可以请我喝杯咖啡，或者随手赞赏支持一下继续维护：
 
-|                                             微信赞赏 (WeChat)                                             |                                            支付宝赞赏 (Alipay)                                             |
-| :-------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------: |
 | <img src="https://anta.obs.cn-south-1.myhuaweicloud.com/icon/wechat111.jpg" width="200" alt="微信赞赏" /> | <img src="https://anta.obs.cn-south-1.myhuaweicloud.com/icon/zhifubao.jpg" width="200" alt="支付宝赞赏" /> |
+
+---
+
+## 🔗 社区关联与致谢 (Community Links)
+
+该开源项目与 LINUX DO 社区相关联并获得其认可：
+
+- **LINUX DO**：https://linux.do/
+
+---
 
 ---
 

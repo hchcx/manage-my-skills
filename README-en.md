@@ -177,9 +177,23 @@ You are welcome to join the AI Community Group (QQ Group: 1091305103) to submit 
 
 If **Manage My Skills** has been helpful to you, feel free to buy me a coffee or show some support to keep the maintenance going:
 
-|                                                 WeChat Pay                                                  |                                                 Alipay                                                 |
-| :---------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------: |
 | <img src="https://anta.obs.cn-south-1.myhuaweicloud.com/icon/wechat111.jpg" width="200" alt="WeChat Pay" /> | <img src="https://anta.obs.cn-south-1.myhuaweicloud.com/icon/zhifubao.jpg" width="200" alt="Alipay" /> |
+
+---
+
+## 🔗 Community Links
+
+This open-source project is linked with and recognized by the LINUX DO community:
+
+* **LINUX DO**: https://linux.do/
+
+Thanks to Headroom for the compression algorithms and architecture vendored into Marginalia's built-in compression path.
+
+---
+
+## 📄 License
+
+TBD (likely MIT / Apache-2.0).
 
 ---
 
