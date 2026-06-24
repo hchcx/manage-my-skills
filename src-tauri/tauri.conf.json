@@ -41,7 +41,7 @@
       "endpoints": [
         "https://github.com/hchcx/manage-my-skills/releases/latest/download/latest.json"
       ],
-      "pubkey": "YOUR_PUBLIC_KEY_CONTENT_HERE"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY5NDA5RDk1M0E4NUUzOUUKUldTZTQ0VTZsWjFBYVdxUUFiRzBxdUFPNDZ2Zy9SL3lYMlNpSmZEclBBVndTYnZXaDBYV3JMTVQK"
     }
   }
 }
