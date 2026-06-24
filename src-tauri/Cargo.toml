@@ -1,6 +1,6 @@
 [package]
 name = "manage-my-skills"
-version = "0.1.1"
+version = "0.1.2"
 description = "Desktop workbench for local Agent Skills"
 authors = ["Manage My skills"]
 edition = "2021"
@@ -18,10 +18,11 @@ chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
-tauri = { version = "2", features = ["macos-private-api"] }
+tauri = { version = "2", features = ["macos-private-api", "tray-icon"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tauri-plugin-autostart = "2"
 walkdir = "2"
 
 [dev-dependencies]

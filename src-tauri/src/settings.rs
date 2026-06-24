@@ -30,6 +30,9 @@ pub fn default_settings(app: &AppHandle) -> Result<Settings, String> {
         enabled_agent_ids: None,
         custom_agents: None,
         agent_order: None,
+        autostart: false,
+        silent_start: false,
+        minimize_to_tray: false,
     })
 }
 

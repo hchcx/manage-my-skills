@@ -30,7 +30,10 @@ const defaultSettings: AppSettings = {
   projectFolders: [],
   customRoots: [],
   showRawPaths: false,
-  language: "zh-CN"
+  language: "zh-CN",
+  autostart: false,
+  silentStart: false,
+  minimizeToTray: false
 };
 
 

@@ -7,6 +7,9 @@ export type Settings = {
   enabledAgentIds?: string[];
   customAgents?: CustomAgent[];
   agentOrder?: string[];
+  autostart?: boolean;
+  silentStart?: boolean;
+  minimizeToTray?: boolean;
 };
 
 export type CustomRoot = {

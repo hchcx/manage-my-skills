@@ -12,6 +12,80 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_autostart::Builder::default().build())
+        .setup(|app| {
+            use tauri::menu::{Menu, MenuItem};
+            use tauri::tray::TrayIconBuilder;
+            use tauri::Manager;
+
+            // 1. 获取主窗口
+            let window = app.get_webview_window("main").unwrap();
+
+            // 2. 读取配置，处理静默启动
+            let settings = settings::load_settings(app.handle()).unwrap_or_default();
+            if !settings.silent_start {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+
+            // 3. 拦截窗口关闭事件，处理“关闭时最小化到托盘”
+            let window_clone = window.clone();
+            window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    let app_handle = window_clone.app_handle();
+                    let settings = settings::load_settings(app_handle).unwrap_or_default();
+                    if settings.minimize_to_tray {
+                        api.prevent_close();
+                        let _ = window_clone.hide();
+                    }
+                }
+            });
+
+            // 4. 创建托盘图标及右键菜单
+            let show_i = MenuItem::with_id(app, "show", "显示主界面", true, None::<&str>)?;
+            let quit_i = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+
+            let mut tray_builder = TrayIconBuilder::new()
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_tray_icon_event(|tray, event| {
+                    use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .on_menu_event(|app, event| {
+                    match event.id.0.as_str() {
+                        "show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        "quit" => {
+                            app.exit(0);
+                        }
+                        _ => {}
+                    }
+                });
+
+            if let Some(icon) = app.default_window_icon().cloned() {
+                tray_builder = tray_builder.icon(icon);
+            }
+
+            let _tray = tray_builder.build(app)?;
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
             commands::save_settings,

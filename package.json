@@ -1,6 +1,6 @@
 {
   "name": "manage-my-skills",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,8 @@
     "tauri:dev:hmr": "tauri dev --config src-tauri/tauri.hmr.conf.json",
     "tauri:build": "tauri build",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
-    "smoke": "npm run build && npm run test:rust"
+    "smoke": "npm run build && npm run test:rust",
+    "release": "node scripts/bump-version.js"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.5.0",

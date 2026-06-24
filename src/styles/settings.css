@@ -246,3 +246,33 @@
   }
 }
 
+/* iOS style toggle switch */
+.ios-switch {
+  cursor: pointer;
+}
+.ios-switch input:checked + .ios-slider {
+  background-color: #10b981; /* 漂亮的绿色 */
+}
+.ios-switch input:checked + .ios-slider:before {
+  transform: translateX(18px);
+}
+.ios-slider {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #e2e8f0;
+  transition: .2s;
+  border-radius: 999px;
+}
+.ios-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .2s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+

@@ -27,6 +27,12 @@ pub struct Settings {
     pub custom_agents: Option<Vec<CustomAgent>>,
     #[serde(default)]
     pub agent_order: Option<Vec<String>>,
+    #[serde(default)]
+    pub autostart: bool,
+    #[serde(default)]
+    pub silent_start: bool,
+    #[serde(default)]
+    pub minimize_to_tray: bool,
 }
 
 impl Default for Settings {
@@ -40,6 +46,9 @@ impl Default for Settings {
             enabled_agent_ids: None,
             custom_agents: None,
             agent_order: None,
+            autostart: false,
+            silent_start: false,
+            minimize_to_tray: false,
         }
     }
 }

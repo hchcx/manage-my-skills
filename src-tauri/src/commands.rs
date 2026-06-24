@@ -23,7 +23,20 @@ pub fn get_settings(app: AppHandle) -> Result<Settings, String> {
 
 #[tauri::command]
 pub fn save_settings(app: AppHandle, settings: Settings) -> Result<Settings, String> {
+    let old_settings = settings::load_settings(&app).ok();
     settings::save_settings(&app, &settings)?;
+    
+    let old_autostart = old_settings.map(|s| s.autostart).unwrap_or(false);
+    if old_autostart != settings.autostart {
+        use tauri_plugin_autostart::ManagerExt;
+        let autolaunch_manager = app.autolaunch();
+        if settings.autostart {
+            let _ = autolaunch_manager.enable();
+        } else {
+            let _ = autolaunch_manager.disable();
+        }
+    }
+    
     settings::load_settings(&app)
 }
 

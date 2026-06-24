@@ -1,4 +1,4 @@
-import { Check, XCircle, Trash2, Plus, FolderOpen, Upload, GripVertical, Globe, Github, FileText, RefreshCw, Activity, RotateCw, ArrowUpCircle, Download } from "lucide-react";
+import { Check, XCircle, Trash2, Plus, FolderOpen, Upload, GripVertical, Globe, Github, FileText, RefreshCw, Activity, RotateCw, ArrowUpCircle, Download, Power, VolumeX, Minimize2 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { AgentIcon, StatusPill } from "./shared";
 import { agentSignalSummary, agentSkillCount, compactPath } from "../lib/skillUtils";
@@ -517,6 +517,77 @@ export function SettingsSheet({
                     ? (settings.showRawPaths ? inventory.appDataPath : compactPath(inventory.appDataPath)) 
                     : "尚未扫描"}
                 </code>
+              </section>
+
+              <section className="settings-section">
+                <h2>窗口行为</h2>
+                <div style={{ display: "grid", gap: "10px" }}>
+                  {/* 开机自启 */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", border: "1px solid rgba(24, 26, 29, 0.08)", borderRadius: "8px", background: "#fff" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "32px", height: "32px", borderRadius: "50%", background: "#fff7ed", color: "#f97316" }}>
+                        <Power size={16} />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <span style={{ fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>开机自启</span>
+                        <small style={{ fontSize: "11px", color: "rgba(23, 25, 28, 0.58)" }}>随系统启动自动运行 Manage My skills</small>
+                      </div>
+                    </div>
+                    <label className="ios-switch" style={{ position: "relative", display: "inline-block", width: "38px", height: "20px" }}>
+                      <input
+                        type="checkbox"
+                        checked={!!settings.autostart}
+                        onChange={(e) => onChange({ ...settings, autostart: e.target.checked })}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span className="ios-slider"></span>
+                    </label>
+                  </div>
+
+                  {/* 静默启动 */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", border: "1px solid rgba(24, 26, 29, 0.08)", borderRadius: "8px", background: "#fff" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "32px", height: "32px", borderRadius: "50%", background: "#f0fdf4", color: "#22c55e" }}>
+                        <VolumeX size={16} />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <span style={{ fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>静默启动</span>
+                        <small style={{ fontSize: "11px", color: "rgba(23, 25, 28, 0.58)" }}>程序启动时不显示主窗口，仅在系统托盘运行</small>
+                      </div>
+                    </div>
+                    <label className="ios-switch" style={{ position: "relative", display: "inline-block", width: "38px", height: "20px" }}>
+                      <input
+                        type="checkbox"
+                        checked={!!settings.silentStart}
+                        onChange={(e) => onChange({ ...settings, silentStart: e.target.checked })}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span className="ios-slider"></span>
+                    </label>
+                  </div>
+
+                  {/* 关闭时最小化到托盘 */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", border: "1px solid rgba(24, 26, 29, 0.08)", borderRadius: "8px", background: "#fff" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "32px", height: "32px", borderRadius: "50%", background: "#eff6ff", color: "#3b82f6" }}>
+                        <Minimize2 size={16} />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <span style={{ fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>关闭时最小化到托盘</span>
+                        <small style={{ fontSize: "11px", color: "rgba(23, 25, 28, 0.58)" }}>点击关闭按钮时隐藏到系统托盘，取消则直接退出应用。</small>
+                      </div>
+                    </div>
+                    <label className="ios-switch" style={{ position: "relative", display: "inline-block", width: "38px", height: "20px" }}>
+                      <input
+                        type="checkbox"
+                        checked={!!settings.minimizeToTray}
+                        onChange={(e) => onChange({ ...settings, minimizeToTray: e.target.checked })}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span className="ios-slider"></span>
+                    </label>
+                  </div>
+                </div>
               </section>
             </>
           )}
