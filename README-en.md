@@ -13,9 +13,10 @@ All filesystem mutations go through a strict **Preview → Confirm → Async App
 
 ## 🌟 Features
 
-* **Cross-Platform Native Styling**:
+* **Cross-Platform Native Styling & Window Behaviors**:
   - **macOS**: Beautiful frosted glass translucent window styling.
   - **Windows**: Deep integration with Windows 11/10 supporting native Mica and Acrylic effects with auto-adaptive window properties.
+  - **System Tray & Window Controls**: Provides a polished system tray menu to toggle visibility via single left-click. Supports setting autostart, silent launching (tray-only backend start), and minimizing to tray instead of quitting on close.
 * **Automatic Agent Discovery**: Automatically scans and lists all installed AI coding assistants and their global/project-level Skills directories.
 * **Smart & Safe Sync Engine**:
   - Supports both **Global** and **Project** workspace scopes.
@@ -90,6 +91,21 @@ To build installers for your current platform:
 npm run tauri:build
 ```
 Build files will be generated under `src-tauri/target/release/bundle/`.
+
+#### One-Click Version Bumping & Compiling (Automation Script)
+We provide an automated, error-tolerant publishing script that synchronizes the version string across `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`, then triggers compilation:
+```bash
+# Example: Bump to 0.1.2 and build
+npm run release -- 0.1.2
+```
+
+**💡 Encryption & Signing Keys Setup:**
+- **To generate signed updater artifacts**: Create a `.env` file at the project root (automatically ignored by `.gitignore`), then configure your signing credentials:
+  ```env
+  TAURI_SIGNING_PRIVATE_KEY="YOUR_PRIVATE_KEY_CONTENT"
+  TAURI_SIGNING_PRIVATE_KEY_PASSWORD="YOUR_PASSWORD"
+  ```
+- **Local Unsigned Build Mode**: If no private key is detected, the script will temporarily disable `createUpdaterArtifacts` in a clone profile and compiled unsigned executables successfully without crashing. It then restores your configuration back automatically.
 
 ---
 
