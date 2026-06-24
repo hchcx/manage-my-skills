@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 
 pub fn scan(app: &AppHandle, options: ScanOptions) -> Result<InventorySnapshot, String> {
+    let _ = crate::trash::clean_expired_trash_items(app);
     let settings = load_settings(app)?;
     let app_data = app_data_dir(app)?;
     let library_path = PathBuf::from(&settings.library_path);

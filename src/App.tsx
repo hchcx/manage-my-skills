@@ -846,6 +846,7 @@ export default function App() {
             onCloseDiscovery={closeProjectDiscovery}
             onLinkDiscoveredProject={(path) => void addProjectPath(path)}
             onRemoveProject={(folder) => void removeProjectWorkspace(folder)}
+            onShowToast={setToast}
           />
         ) : null}
 

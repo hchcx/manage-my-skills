@@ -5,6 +5,7 @@ mod registry;
 mod scanner;
 mod settings;
 mod sync_plan;
+mod trash;
 
 pub fn run() {
     tauri::Builder::default()
@@ -30,7 +31,12 @@ pub fn run() {
             commands::apply_sync_plan,
             commands::toggle_agent_skill,
             commands::fix_skill_folder_name,
-            commands::create_skill_md
+            commands::create_skill_md,
+            trash::delete_skill,
+            trash::get_trash_items,
+            trash::restore_skill,
+            trash::delete_trash_item_permanently,
+            trash::empty_trash
         ])
         .run(tauri::generate_context!())
         .expect("error while running Manage My skills");

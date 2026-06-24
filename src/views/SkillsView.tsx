@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, FolderOpen, FolderPlus, Github, RefreshCw, Search, XCircle, ArrowUpCircle } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, FolderOpen, FolderPlus, Github, RefreshCw, Search, XCircle, ArrowUpCircle, Trash2, Undo, X } from "lucide-react";
 import { Fragment, useEffect, useRef, useState, useMemo, type ReactNode } from "react";
 import { agentIconAsset } from "../agentIconRegistry";
 import { AgentEmptyVisual, ProjectEmptyVisual } from "../components/EmptyStateVisuals";
@@ -49,7 +49,8 @@ export function SkillsView({
   onDiscoverProjects,
   onCloseDiscovery,
   onLinkDiscoveredProject,
-  onRemoveProject
+  onRemoveProject,
+  onShowToast
 }: {
   agents: AgentRecord[];
   skills: SkillRecord[];
@@ -90,6 +91,7 @@ export function SkillsView({
   onCloseDiscovery: () => void;
   onLinkDiscoveredProject: (path: string) => void;
   onRemoveProject: (folder: string) => void;
+  onShowToast?: (message: string) => void;
 }) {
   const [agentMenuOpen, setAgentMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -100,10 +102,129 @@ export function SkillsView({
   const [toggleBusy, setToggleBusy] = useState<string | null>(null);
   const [fixingAll, setFixingAll] = useState(false);
 
+  const [optimisticDeletedPaths, setOptimisticDeletedPaths] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setOptimisticDeletedPaths(new Set());
+  }, [skills]);
+
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trashItems, setTrashItems] = useState<any[]>([]);
+  const [loadingTrash, setLoadingTrash] = useState(false);
+
+  const loadTrash = async () => {
+    if (!isTauriRuntime()) return;
+    setLoadingTrash(true);
+    try {
+      const items: any[] = await invoke("get_trash_items");
+      setTrashItems(items);
+    } catch (e) {
+      console.error("Failed to load trash items:", e);
+    } finally {
+      setLoadingTrash(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadTrash();
+  }, []);
+
+  useEffect(() => {
+    if (trashOpen) {
+      void loadTrash();
+    }
+  }, [trashOpen]);
+
+  const handleRestoreSkill = async (id: string) => {
+    // 乐观更新回收站列表
+    setTrashItems((prev) => prev.filter((item) => item.id !== id));
+
+    try {
+      await invoke("restore_skill", { id });
+      if (onShowToast) onShowToast("技能已成功恢复！");
+      await loadTrash();
+      onRefresh(true);
+    } catch (err) {
+      await loadTrash();
+      alert(`恢复失败: ${err}`);
+    }
+  };
+
+  const performDeleteSkill = async (localPath: string, displayName: string, beforeDelete: () => void) => {
+    if (!window.confirm(`确定要将技能 "${displayName}" 移入回收站吗？\n删除后您可以在 30 天内随时恢复。`)) {
+      return;
+    }
+
+    // 1. 乐观更新：本地直接剔除
+    setOptimisticDeletedPaths((prev) => {
+      const next = new Set(prev);
+      next.add(localPath);
+      return next;
+    });
+    // 2. 收起列表卡片或返回
+    beforeDelete();
+
+    try {
+      await invoke("delete_skill", { path: localPath });
+      if (onShowToast) onShowToast("技能已成功移入回收站！");
+      onRefresh(true);
+    } catch (err) {
+      // 失败时回退乐观删除
+      setOptimisticDeletedPaths((prev) => {
+        const next = new Set(prev);
+        next.delete(localPath);
+        return next;
+      });
+      alert(`删除失败: ${err}`);
+    }
+  };
+
+  const handleDeleteTrashItemPermanently = async (id: string, name: string) => {
+    if (!window.confirm(`确定要彻底删除 "${name}" 吗？\n此操作不可逆，它的所有物理文件将被永久删除！`)) {
+      return;
+    }
+    try {
+      await invoke("delete_trash_item_permanently", { id });
+      if (onShowToast) onShowToast("已彻底物理删除技能！");
+      await loadTrash();
+    } catch (err) {
+      alert(`彻底删除失败: ${err}`);
+    }
+  };
+
+  const handleEmptyTrash = async () => {
+    if (!window.confirm("确定要清空回收站吗？\n所有已删除的 Skill 将被彻底物理删除，且不可恢复！")) {
+      return;
+    }
+    try {
+      await invoke("empty_trash");
+      if (onShowToast) onShowToast("已清空回收站！");
+      await loadTrash();
+    } catch (err) {
+      alert(`清空回收站失败: ${err}`);
+    }
+  };
+
+  const getRemainingDays = (deletedAtStr: string) => {
+    try {
+      const deletedAt = new Date(deletedAtStr);
+      const elapsedMs = Date.now() - deletedAt.getTime();
+      const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+      const remaining = Math.max(0, Math.ceil(30 - elapsedDays));
+      return remaining;
+    } catch (e) {
+      return 30;
+    }
+  };
+
   // 聚合去重，将相同 slug 的 Skills 合并为单行展示
   const mergedSkills = useMemo(() => {
     const map = new Map<string, SkillRecord>();
     for (const skill of skills) {
+      const path = skill.canonicalPath ?? firstValidInstallation(skill)?.entryPath;
+      if (path && optimisticDeletedPaths.has(path)) {
+        continue;
+      }
       const existing = map.get(skill.slug);
       if (existing) {
         const combinedInstalls = [...existing.installations];
@@ -139,7 +260,7 @@ export function SkillsView({
       }
     }
     return Array.from(map.values());
-  }, [skills]);
+  }, [skills, optimisticDeletedPaths]);
 
   const availableUpdatesCount = useMemo(() => {
     return skills.filter((s) => skillUpdateChecks[s.id]?.status === "available").length;
@@ -469,6 +590,123 @@ export function SkillsView({
             <button className="icon-button plain" disabled={refreshing || checkingUpdates} onClick={() => onRefresh()} title="重新扫描" type="button">
               <RefreshCw className={refreshing ? "spin" : ""} size={17} />
             </button>
+            <button
+              className="icon-button plain"
+              style={{ position: 'relative' }}
+              onClick={() => setTrashOpen(true)}
+              title="回收站"
+              type="button"
+            >
+              <Trash2 size={17} />
+              {trashItems.length > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-2px',
+                  right: '-2px',
+                  background: '#dc2626',
+                  color: 'white',
+                  borderRadius: '50%',
+                  fontSize: '9px',
+                  fontWeight: 'bold',
+                  minWidth: '14px',
+                  height: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 2px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
+                }}>
+                  {trashItems.length}
+                </span>
+              )}
+            </button>
+
+            {trashOpen && (
+              <div className="trash-modal-overlay" onClick={() => setTrashOpen(false)}>
+                <div className="trash-modal-card" onClick={(e) => e.stopPropagation()}>
+                  <div className="trash-modal-header">
+                    <div>
+                      <h2>回收站</h2>
+                      <p>被删除的 Skill 将会在这里暂存 30 天，超时后将彻底物理删除</p>
+                    </div>
+                    <button className="trash-close-x" onClick={() => setTrashOpen(false)} type="button">
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div className="trash-modal-body">
+                    {loadingTrash ? (
+                      <div className="trash-empty-state">
+                        <RefreshCw className="spin" size={24} style={{ color: "rgba(23, 25, 28, 0.44)" }} />
+                        <p style={{ marginTop: "12px" }}>正在加载回收站...</p>
+                      </div>
+                    ) : trashItems.length === 0 ? (
+                      <div className="trash-empty-state">
+                        <Trash2 size={32} style={{ color: "rgba(23, 25, 28, 0.3)" }} />
+                        <p>回收站是空的</p>
+                      </div>
+                    ) : (
+                      <div className="trash-list">
+                        {trashItems.map((item) => (
+                          <div className="trash-row" key={item.id}>
+                            <div className="trash-item-info">
+                              <span className="trash-item-title">{item.name}</span>
+                              <span className="trash-item-path" title={item.original_path}>{item.original_path}</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                              <span className="trash-item-expiry">剩余 {getRemainingDays(item.deleted_at)} 天</span>
+                              <div className="trash-item-actions">
+                                <button
+                                  className="trash-row-btn restore"
+                                  onClick={() => handleRestoreSkill(item.id)}
+                                  title="恢复此 Skill"
+                                  type="button"
+                                >
+                                  <Undo size={14} />
+                                </button>
+                                <button
+                                  className="trash-row-btn delete"
+                                  onClick={() => handleDeleteTrashItemPermanently(item.id, item.name)}
+                                  title="彻底删除"
+                                  type="button"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="trash-modal-footer">
+                    {trashItems.length > 0 ? (
+                      <button
+                        className="secondary-button"
+                        onClick={handleEmptyTrash}
+                        style={{
+                          borderColor: "rgba(220, 38, 38, 0.4)",
+                          background: "rgba(220, 38, 38, 0.04)",
+                          color: "#dc2626",
+                          height: "32px",
+                          fontSize: "12px"
+                        }}
+                        type="button"
+                      >
+                        清空回收站
+                      </button>
+                    ) : <div />}
+                    <button
+                      className="primary-button"
+                      onClick={() => setTrashOpen(false)}
+                      style={{ height: "32px", fontSize: "12px" }}
+                      type="button"
+                    >
+                      关闭
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="agent-menu-wrap" ref={agentMenuRef}>
               <button
                 className={`agent-menu-trigger ${agentMenuOpen ? "open" : ""}`}
@@ -655,6 +893,7 @@ export function SkillsView({
                       onSelect={() => onSelectSkill(expanded ? null : skill.id)}
                       onToggle={() => onToggleSkill(skill.id)}
                       onUpdate={() => onUpdateSkill(skill)}
+                      onDeleteSkill={performDeleteSkill}
                     />
                     {expanded && (
                       <SkillDetail
@@ -671,6 +910,8 @@ export function SkillsView({
                             await handleCreateSkillMd(issue.path || "", skill);
                           }
                         }}
+                        onSelectSkill={onSelectSkill}
+                        onDeleteSkill={performDeleteSkill}
                       />
                     )}
                   </Fragment>
@@ -893,7 +1134,8 @@ function SkillRow({
   onToggleSync,
   onSelect,
   onToggle,
-  onUpdate
+  onUpdate,
+  onDeleteSkill
 }: {
   skill: SkillRecord;
   agents: AgentRecord[];
@@ -907,6 +1149,7 @@ function SkillRow({
   onSelect: () => void;
   onToggle: () => void;
   onUpdate: () => void;
+  onDeleteSkill: (localPath: string, displayName: string, beforeDelete: () => void) => Promise<void>;
 }) {
   return (
     <article className={`skill-row ${active ? "active" : ""}`} onClick={onSelect}>
@@ -946,6 +1189,26 @@ function SkillRow({
         updating={updating}
         onUpdate={onUpdate}
       />
+      <button
+        className="skill-row-delete-btn"
+        onMouseDown={(event) => {
+          event.stopPropagation();
+        }}
+        onClick={async (event) => {
+          event.stopPropagation();
+          event.preventDefault();
+          const localPath = skill.canonicalPath ?? firstValidInstallation(skill)?.entryPath;
+          if (!localPath) {
+            alert("找不到该技能的本地路径，无法删除。");
+            return;
+          }
+          await onDeleteSkill(localPath, skill.displayName || skill.slug, onSelect);
+        }}
+        title="移入回收站"
+        type="button"
+      >
+        <Trash2 size={15} />
+      </button>
     </article>
   );
 }
@@ -1003,7 +1266,9 @@ function SkillDetail({
   updateCheck,
   updating,
   onUpdate,
-  onResolveIssue
+  onResolveIssue,
+  onSelectSkill,
+  onDeleteSkill
 }: {
   skill: SkillRecord;
   settings: AppSettings;
@@ -1012,6 +1277,8 @@ function SkillDetail({
   updating: boolean;
   onUpdate: () => void;
   onResolveIssue: (issue: any) => void;
+  onSelectSkill: (id: string | null) => void;
+  onDeleteSkill: (localPath: string, displayName: string, beforeDelete: () => void) => Promise<void>;
 }) {
   const source = skillSourceSummary(skill, skillLocks);
   const sourceInstallation = firstValidInstallation(skill);
@@ -1126,6 +1393,33 @@ function SkillDetail({
         <DetailField label="问题">
           <IssueList issues={skill.issues} onResolve={onResolveIssue} />
         </DetailField>
+      )}
+
+      {localPath && (
+        <div style={{ marginTop: "16px", borderTop: "1px solid rgba(24, 26, 29, 0.08)", paddingTop: "12px", display: "flex", justifyContent: "flex-end" }}>
+          <button
+            className="secondary-button"
+            onClick={async (event) => {
+              event.stopPropagation();
+              await onDeleteSkill(localPath, skill.displayName || skill.slug, () => onSelectSkill(null));
+            }}
+            style={{
+              borderColor: "rgba(220, 38, 38, 0.4)",
+              background: "rgba(220, 38, 38, 0.04)",
+              color: "#dc2626",
+              height: "28px",
+              fontSize: "12px",
+              padding: "0 10px",
+              display: "inline-flex",
+              alignItems: "center",
+              cursor: "pointer"
+            }}
+            type="button"
+          >
+            <Trash2 size={13} style={{ marginRight: "6px" }} />
+            删除此 Skill
+          </button>
+        </div>
       )}
     </div>
   );
