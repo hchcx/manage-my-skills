@@ -379,6 +379,16 @@ export function SkillsView({
                   onChange={(event) => onQuery(event.target.value)}
                   placeholder="搜索 Skill、简介或 Agent"
                 />
+                {query && (
+                  <button
+                    className="clear-search-button"
+                    onClick={() => onQuery("")}
+                    title="清空"
+                    type="button"
+                  >
+                    <XCircle size={14} />
+                  </button>
+                )}
               </div>
             )}
             <button

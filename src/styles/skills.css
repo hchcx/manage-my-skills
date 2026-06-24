@@ -417,6 +417,25 @@
   color: var(--app-text);
 }
 
+.clear-search-button {
+  border: 0;
+  background: transparent;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(23, 25, 28, 0.44);
+  border-radius: 999px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.clear-search-button:hover {
+  color: #2f3338;
+  background-color: rgba(24, 26, 29, 0.08);
+}
+
 .skills-summary {
   display: flex;
   align-items: center;
