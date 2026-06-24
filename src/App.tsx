@@ -696,6 +696,63 @@ export default function App() {
     }
   }
 
+  async function updateAllAvailableSkills() {
+    if (!inventory) return;
+    const availableSkills = inventory.skills.filter(
+      (skill) => skillUpdateChecks[skill.id]?.status === "available"
+    );
+    if (availableSkills.length === 0) return;
+
+    setBusy(`正在更新 ${availableSkills.length} 个技能...`);
+    setError(null);
+    setUpdatingSkillIds((current) => {
+      const next = new Set(current);
+      for (const s of availableSkills) {
+        next.add(s.id);
+      }
+      return next;
+    });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const skill of availableSkills) {
+      const source = skillsShUpdateSource(skill, skillLocks);
+      if (!source) continue;
+      try {
+        const result = await invoke<SkillUpdateCheck>("update_skills_sh_skill", {
+          slug: skill.slug,
+          entryPath: source.installation.entryPath,
+          sourceUrl: source.sourceUrl,
+          skillPath: source.lock.skillPath ?? null
+        });
+        setSkillUpdateChecks((current) => ({
+          ...current,
+          [skill.id]: result
+        }));
+        successCount++;
+      } catch (err) {
+        console.error(`更新技能 ${skill.displayName} 失败:`, err);
+        failCount++;
+      } finally {
+        setUpdatingSkillIds((current) => {
+          const next = new Set(current);
+          next.delete(skill.id);
+          return next;
+        });
+      }
+    }
+
+    await refreshInventory(true);
+    setBusy("");
+
+    if (failCount > 0) {
+      alert(`更新完成。成功 ${successCount} 个，失败 ${failCount} 个。`);
+    } else {
+      setToast(`已成功更新 ${successCount} 个技能`);
+    }
+  }
+
   return (
     <main className="app-shell">
       <header className="top-nav">
@@ -778,6 +835,7 @@ export default function App() {
             onSelectSkill={setSelectedSkillId}
             onToggleSkill={toggleSkill}
             onUpdateSkill={updateSkillsShSkill}
+            onUpdateAllAvailable={updateAllAvailableSkills}
             onToggleAgentSkill={toggleAgentSkill}
             onAdoptSelected={() => openSelectedSkillsSync("managed")}
             onQuickSyncSelected={() => openSelectedSkillsSync("quick")}

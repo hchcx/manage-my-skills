@@ -38,6 +38,7 @@ export function SkillsView({
   onSelectSkill,
   onToggleSkill,
   onUpdateSkill,
+  onUpdateAllAvailable,
   onToggleAgentSkill,
   onAdoptSelected,
   onQuickSyncSelected,
@@ -77,6 +78,7 @@ export function SkillsView({
   onSelectSkill: (id: string | null) => void;
   onToggleSkill: (id: string) => void;
   onUpdateSkill: (skill: SkillRecord) => void;
+  onUpdateAllAvailable: () => void;
   onToggleAgentSkill: (skill: SkillRecord, agentId: string, active: boolean, sourcePath: string) => Promise<void>;
   onAdoptSelected: () => void;
   onQuickSyncSelected: () => void;
@@ -138,6 +140,10 @@ export function SkillsView({
     }
     return Array.from(map.values());
   }, [skills]);
+
+  const availableUpdatesCount = useMemo(() => {
+    return skills.filter((s) => skillUpdateChecks[s.id]?.status === "available").length;
+  }, [skills, skillUpdateChecks]);
 
   // 找出所有存在 name-mismatch 问题的 installations
   const nameMismatchedInstallations = useMemo(() => {
@@ -396,6 +402,35 @@ export function SkillsView({
                   </>
                 ) : (
                   `一键修复名称冲突 (${nameMismatchedInstallations.length})`
+                )}
+              </button>
+            )}
+            {availableUpdatesCount > 0 && (
+              <button
+                className="secondary-button compact"
+                disabled={refreshing || checkingUpdates || Array.from(updatingSkillIds).length > 0}
+                onClick={onUpdateAllAvailable}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  borderColor: "rgba(249, 115, 22, 0.4)",
+                  background: "rgba(249, 115, 22, 0.08)",
+                  color: "#ea580c",
+                  height: "28px"
+                }}
+                title="一键将所有有新版本可用的技能更新为远程最新版本"
+                type="button"
+              >
+                {Array.from(updatingSkillIds).length > 0 ? (
+                  <>
+                    <RefreshCw className="spin" size={13} style={{ marginRight: '6px' }} />
+                    正在更新...
+                  </>
+                ) : (
+                  <>
+                    <ArrowUpCircle size={13} style={{ marginRight: '6px' }} />
+                    一键更新全部 ({availableUpdatesCount})
+                  </>
                 )}
               </button>
             )}
