@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, FolderOpen, FolderPlus, Github, RefreshCw, Search, XCircle, ArrowUpCircle, Trash2, Undo, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, FolderOpen, FolderPlus, Github, RefreshCw, Search, XCircle, ArrowUpCircle, Trash2, Undo, X, Settings } from "lucide-react";
 import { Fragment, useEffect, useRef, useState, useMemo, type ReactNode } from "react";
 import { agentIconAsset } from "../agentIconRegistry";
 import { AgentEmptyVisual, ProjectEmptyVisual } from "../components/EmptyStateVisuals";
@@ -50,7 +50,8 @@ export function SkillsView({
   onCloseDiscovery,
   onLinkDiscoveredProject,
   onRemoveProject,
-  onShowToast
+  onShowToast,
+  onOpenSettings
 }: {
   agents: AgentRecord[];
   skills: SkillRecord[];
@@ -92,6 +93,7 @@ export function SkillsView({
   onLinkDiscoveredProject: (path: string) => void;
   onRemoveProject: (folder: string) => void;
   onShowToast?: (message: string) => void;
+  onOpenSettings?: () => void;
 }) {
   const [agentMenuOpen, setAgentMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -622,6 +624,16 @@ export function SkillsView({
                 </span>
               )}
             </button>
+            {onOpenSettings && (
+              <button
+                className="icon-button plain"
+                onClick={onOpenSettings}
+                title="设置"
+                type="button"
+              >
+                <Settings size={17} />
+              </button>
+            )}
 
             {trashOpen && (
               <div className="trash-modal-overlay" onClick={() => setTrashOpen(false)}>

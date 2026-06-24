@@ -847,6 +847,7 @@ export default function App() {
             onLinkDiscoveredProject={(path) => void addProjectPath(path)}
             onRemoveProject={(folder) => void removeProjectWorkspace(folder)}
             onShowToast={setToast}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
         ) : null}
 
