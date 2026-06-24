@@ -399,7 +399,7 @@ pub fn detect_agents(settings: &Settings, include_orphaned: bool) -> Vec<AgentRe
             (order_idx, agent.priority, agent.label.to_ascii_lowercase())
         });
     } else {
-        records.sort_by_key(|agent| (agent.priority, agent.label.to_ascii_lowercase()));
+        records.sort_by_key(|agent| (!agent.enabled, agent.priority, agent.label.to_ascii_lowercase()));
     }
     records
 }

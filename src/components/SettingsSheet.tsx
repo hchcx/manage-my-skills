@@ -108,7 +108,7 @@ export function SettingsSheet({
     }
   }
 
-  // Sort based on settings.agentOrder
+  // Sort based on settings.agentOrder, otherwise default to showing enabled ones first
   if (settings.agentOrder) {
     const orderMap = new Map(settings.agentOrder.map((id, index) => [id, index]));
     displayAgents.sort((a, b) => {
@@ -116,7 +116,40 @@ export function SettingsSheet({
       const idxB = orderMap.has(b.id) ? orderMap.get(b.id)! : 9999;
       return idxA - idxB;
     });
+  } else {
+    displayAgents.sort((a, b) => {
+      const enabledA = settings.enabledAgentIds ? settings.enabledAgentIds.includes(a.id) : a.installed;
+      const enabledB = settings.enabledAgentIds ? settings.enabledAgentIds.includes(b.id) : b.installed;
+      if (enabledA !== enabledB) {
+        return enabledA ? -1 : 1;
+      }
+      if (a.priority !== b.priority) {
+        return a.priority - b.priority;
+      }
+      return a.label.localeCompare(b.label);
+    });
   }
+
+  // Automatically initialize agentOrder with the default sorting (enabled first, then priority/label) if it is missing
+  useEffect(() => {
+    if (!settings.agentOrder && displayAgents.length > 0) {
+      const defaultSorted = [...displayAgents].sort((a, b) => {
+        const enabledA = settings.enabledAgentIds ? settings.enabledAgentIds.includes(a.id) : a.installed;
+        const enabledB = settings.enabledAgentIds ? settings.enabledAgentIds.includes(b.id) : b.installed;
+        if (enabledA !== enabledB) {
+          return enabledA ? -1 : 1;
+        }
+        if (a.priority !== b.priority) {
+          return a.priority - b.priority;
+        }
+        return a.label.localeCompare(b.label);
+      });
+      onChange({
+        ...settings,
+        agentOrder: defaultSorted.map(a => a.id)
+      });
+    }
+  }, [settings.agentOrder, displayAgents.length, onChange]);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
