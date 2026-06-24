@@ -121,10 +121,18 @@ export function SettingsSheet({
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
+    try {
+      e.dataTransfer.setData("text/plain", String(index));
+    } catch (_) {
+      // IE fallback if any
+    }
   };
 
   const handleDragOver = (e: React.DragEvent, hoverIndex: number) => {
     e.preventDefault();
+    try {
+      e.dataTransfer.dropEffect = "move";
+    } catch (_) {}
     if (draggedIndex === null || draggedIndex === hoverIndex) return;
 
     const reordered = [...displayAgents];
@@ -211,7 +219,21 @@ export function SettingsSheet({
           {settingsTab === "agents" && (
             <div className="settings-agents-pane" style={{ gap: "20px" }}>
               {displayAgents.length > 0 ? (
-                <div className="settings-agent-list" style={{ maxHeight: "300px", overflowY: "auto", paddingRight: "4px" }}>
+                <div 
+                  className={`settings-agent-list ${draggedIndex !== null ? "is-dragging" : ""}`} 
+                  style={{ maxHeight: "300px", overflowY: "auto", paddingRight: "4px" }}
+                  onDragOver={(e) => e.preventDefault()}
+                >
+                  {draggedIndex !== null && (
+                    <style>{`
+                      .settings-agent-list.is-dragging .settings-agent-row > * {
+                        pointer-events: none !important;
+                      }
+                      .settings-agent-list.is-dragging .settings-agent-row {
+                        user-select: none !important;
+                      }
+                    `}</style>
+                  )}
                   {displayAgents.map((agent, index) => {
                     const count = agentSkillCount(agent.id, skillsForCount);
                     const signal = agentSignalSummary(agent);
