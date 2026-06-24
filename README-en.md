@@ -9,6 +9,36 @@
 
 All filesystem mutations go through a strict **Preview → Confirm → Async Apply** flow. The core logic is powered by a high-performance Rust backend for maximum safety, speed, and responsiveness.
 
+## 🖼️ Screenshots
+
+<details>
+<summary>💡 Click to expand and view all 9 screenshots</summary>
+
+### 1. Skills Management & Workspaces
+| Global Workspace | Project Workspace - Initial State |
+| :---: | :---: |
+| ![Global Workspace](src-tauri/icons/images/Snipaste_2026-06-24_20-49-59.png) | ![Project Workspace - Initial State](src-tauri/icons/images/Snipaste_2026-06-24_20-50-10.png) |
+
+### 2. Discover Skill Store & Distribution Flow
+| Online Skill Store | Distribution - Agent Selection |
+| :---: | :---: |
+| ![Online Skill Store](src-tauri/icons/images/Snipaste_2026-06-24_20-51-03.png) | ![Distribution - Agent Selection](src-tauri/icons/images/Snipaste_2026-06-24_20-51-14.png) |
+
+| Distribution - Scope & Target Methods | Git Repository Source Manager |
+| :---: | :---: |
+| ![Distribution - Scope & Target Methods](src-tauri/icons/images/Snipaste_2026-06-24_20-51-20.png) | ![Git Repository Source Manager](src-tauri/icons/images/Snipaste_2026-06-24_20-51-33.png) |
+
+### 3. System Configurations & Environment Check
+| Data & Window Preferences | Custom Agent Registry |
+| :---: | :---: |
+| ![Data & Window Preferences](src-tauri/icons/images/Snipaste_2026-06-24_20-50-18.png) | ![Custom Agent Registry](src-tauri/icons/images/Snipaste_2026-06-24_20-50-26.png) |
+
+| About & Environment Health Checkup |
+| :---: |
+| ![About & Environment Health Checkup](src-tauri/icons/images/Snipaste_2026-06-24_20-50-34.png) |
+
+</details>
+
 ---
 
 ## 🌟 Features

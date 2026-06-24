@@ -212,7 +212,9 @@ export function compactPath(path: string) {
 }
 
 export function samePath(left: string, right: string) {
-  return left.replace(/\/+$/, "") === right.replace(/\/+$/, "");
+  const normLeft = left.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+  const normRight = right.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+  return normLeft === normRight;
 }
 
 export function projectSkillsForFolder(skills: SkillRecord[], folder: string | null): SkillRecord[] {
@@ -249,8 +251,8 @@ export function projectStats(folder: string, skills: SkillRecord[]) {
 }
 
 function isPathInFolder(path: string, folder: string) {
-  const normalizedPath = path.replace(/\/+$/, "");
-  const normalizedFolder = folder.replace(/\/+$/, "");
+  const normalizedPath = path.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+  const normalizedFolder = folder.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
   return normalizedPath === normalizedFolder || normalizedPath.startsWith(`${normalizedFolder}/`);
 }
 
