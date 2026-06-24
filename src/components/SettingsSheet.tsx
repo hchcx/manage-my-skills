@@ -73,68 +73,57 @@ export function SettingsSheet({
   const installedCount = agents.length;
   const skillsForCount = skills.length ? skills : (inventory?.skills ?? []);
 
-  // Synthesize displayAgents so newly added custom agents show up in settings list immediately
-  const displayAgents: AgentRecord[] = [...(agents || [])];
-  if (settings.customAgents) {
-    for (const ca of settings.customAgents) {
-      const idx = displayAgents.findIndex(a => a.id === ca.id);
-      if (idx !== -1) {
-        displayAgents[idx] = {
-          ...displayAgents[idx],
-          label: ca.label,
-          globalRoots: ca.globalRoots,
-          projectRoots: ca.projectRoots,
-          iconData: ca.iconData,
-        };
-      } else {
-        displayAgents.push({
-          id: ca.id,
-          label: ca.label,
-          globalRoots: ca.globalRoots,
-          projectRoots: ca.projectRoots,
-          activeSignals: [],
-          cliNames: [],
-          appPaths: [],
-          symlinkSupport: true,
-          priority: 200,
-          installed: false,
-          enabled: settings.enabledAgentIds ? settings.enabledAgentIds.includes(ca.id) : true,
-          status: "not-installed",
-          detectionSources: [],
-          skillRoots: [],
-          skillEntryCount: 0,
-          iconData: ca.iconData,
-        });
+  const [displayAgents, setDisplayAgents] = useState<AgentRecord[]>([]);
+
+  // Synthesize and sort displayAgents locally so dragging states won't trigger jittery parent re-renders
+  useEffect(() => {
+    // Skip updating from props when dragging is active to avoid resetting user positions midterm
+    if (draggedIndex !== null) return;
+
+    const synthesized: AgentRecord[] = [...(agents || [])];
+    if (settings.customAgents) {
+      for (const ca of settings.customAgents) {
+        const idx = synthesized.findIndex(a => a.id === ca.id);
+        if (idx !== -1) {
+          synthesized[idx] = {
+            ...synthesized[idx],
+            label: ca.label,
+            globalRoots: ca.globalRoots,
+            projectRoots: ca.projectRoots,
+            iconData: ca.iconData,
+          };
+        } else {
+          synthesized.push({
+            id: ca.id,
+            label: ca.label,
+            globalRoots: ca.globalRoots,
+            projectRoots: ca.projectRoots,
+            activeSignals: [],
+            cliNames: [],
+            appPaths: [],
+            symlinkSupport: true,
+            priority: 200,
+            installed: false,
+            enabled: settings.enabledAgentIds ? settings.enabledAgentIds.includes(ca.id) : true,
+            status: "not-installed",
+            detectionSources: [],
+            skillRoots: [],
+            skillEntryCount: 0,
+            iconData: ca.iconData,
+          });
+        }
       }
     }
-  }
 
-  // Sort based on settings.agentOrder, otherwise default to showing enabled ones first
-  if (settings.agentOrder) {
-    const orderMap = new Map(settings.agentOrder.map((id, index) => [id, index]));
-    displayAgents.sort((a, b) => {
-      const idxA = orderMap.has(a.id) ? orderMap.get(a.id)! : 9999;
-      const idxB = orderMap.has(b.id) ? orderMap.get(b.id)! : 9999;
-      return idxA - idxB;
-    });
-  } else {
-    displayAgents.sort((a, b) => {
-      const enabledA = settings.enabledAgentIds ? settings.enabledAgentIds.includes(a.id) : a.installed;
-      const enabledB = settings.enabledAgentIds ? settings.enabledAgentIds.includes(b.id) : b.installed;
-      if (enabledA !== enabledB) {
-        return enabledA ? -1 : 1;
-      }
-      if (a.priority !== b.priority) {
-        return a.priority - b.priority;
-      }
-      return a.label.localeCompare(b.label);
-    });
-  }
-
-  // Automatically initialize agentOrder with the default sorting (enabled first, then priority/label) if it is missing
-  useEffect(() => {
-    if (!settings.agentOrder && displayAgents.length > 0) {
-      const defaultSorted = [...displayAgents].sort((a, b) => {
+    if (settings.agentOrder) {
+      const orderMap = new Map(settings.agentOrder.map((id, index) => [id, index]));
+      synthesized.sort((a, b) => {
+        const idxA = orderMap.has(a.id) ? orderMap.get(a.id)! : 9999;
+        const idxB = orderMap.has(b.id) ? orderMap.get(b.id)! : 9999;
+        return idxA - idxB;
+      });
+    } else {
+      synthesized.sort((a, b) => {
         const enabledA = settings.enabledAgentIds ? settings.enabledAgentIds.includes(a.id) : a.installed;
         const enabledB = settings.enabledAgentIds ? settings.enabledAgentIds.includes(b.id) : b.installed;
         if (enabledA !== enabledB) {
@@ -145,21 +134,29 @@ export function SettingsSheet({
         }
         return a.label.localeCompare(b.label);
       });
-      onChange({
-        ...settings,
-        agentOrder: defaultSorted.map(a => a.id)
-      });
+
+      // Automatically initialize agentOrder with the default sorting (enabled first, then priority/label) if it is missing
+      if (synthesized.length > 0) {
+        onChange({
+          ...settings,
+          agentOrder: synthesized.map(a => a.id)
+        });
+      }
     }
-  }, [settings.agentOrder, displayAgents.length, onChange]);
+
+    setDisplayAgents(synthesized);
+  }, [agents, settings.customAgents, settings.agentOrder, settings.enabledAgentIds, onChange, settings, draggedIndex]);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
     try {
       e.dataTransfer.setData("text/plain", String(index));
-    } catch (_) {
-      // IE fallback if any
-    }
+    } catch (_) {}
+    
+    // Crucial: delay setting React active index state by 0ms so that the WebView's drag start handshake completes before React triggers re-render
+    setTimeout(() => {
+      setDraggedIndex(index);
+    }, 0);
   };
 
   const handleDragOver = (e: React.DragEvent, hoverIndex: number) => {
@@ -169,21 +166,23 @@ export function SettingsSheet({
     } catch (_) {}
     if (draggedIndex === null || draggedIndex === hoverIndex) return;
 
+    // Mutate position locally for fast, stutter-free dragging response
     const reordered = [...displayAgents];
     const [removed] = reordered.splice(draggedIndex, 1);
     reordered.splice(hoverIndex, 0, removed);
 
     setDraggedIndex(hoverIndex);
-
-    const newOrder = reordered.map(a => a.id);
-    onChange({
-      ...settings,
-      agentOrder: newOrder
-    });
+    setDisplayAgents(reordered);
   };
 
   const handleDragEnd = () => {
     setDraggedIndex(null);
+    // Batch commit latest order to settings only on drag end to keep re-renders minimum
+    const newOrder = displayAgents.map(a => a.id);
+    onChange({
+      ...settings,
+      agentOrder: newOrder
+    });
   };
 
   // Close on backdrop click (blank area) and Esc
@@ -353,7 +352,7 @@ export function SettingsSheet({
                           } as any}
                           title="拖拽排序"
                         >
-                          <GripVertical size={14} />
+                          <GripVertical size={14} style={{ pointerEvents: "none" }} />
                         </div>
 
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
