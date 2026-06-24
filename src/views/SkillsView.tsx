@@ -1103,21 +1103,7 @@ function SkillAgentStack({
   onToggleSync: (event: React.MouseEvent, agentId: string, active: boolean) => void;
 }) {
   const installedAgents = agents.filter((a) => a.enabled);
-
-  // 动态排序：已点亮（active）的 Agent 排在前面，未点亮的排在后面
-  const sortedAgents = useMemo(() => {
-    return [...installedAgents].sort((left, right) => {
-      const leftActive = skill.installations.some((inst) => inst.agentId === left.id);
-      const rightActive = skill.installations.some((inst) => inst.agentId === right.id);
-      if (leftActive !== rightActive) {
-        return leftActive ? -1 : 1;
-      }
-      return 0;
-    });
-  }, [installedAgents, skill.installations]);
-
-  // 最多显示 6 个图标
-  const displayAgents = sortedAgents.slice(0, 6);
+  const displayAgents = installedAgents.slice(0, 6);
 
   return (
     <div className="skill-agent-stack" aria-label="已安装 Agent" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
