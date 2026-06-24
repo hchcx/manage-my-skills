@@ -110,7 +110,7 @@ export function SettingsSheet({
                     const isCustom = settings.customAgents?.some(ca => ca.id === agent.id);
 
                     const handleToggle = (checked: boolean) => {
-                      const currentEnabled = settings.enabledAgentIds || agents.filter(a => a.installed).map(a => a.id);
+                      const currentEnabled = settings.enabledAgentIds || agents.map(a => a.id);
                       let newEnabled: string[];
                       if (checked) {
                         newEnabled = [...currentEnabled, agent.id];
@@ -127,7 +127,7 @@ export function SettingsSheet({
                       e.stopPropagation();
                       if (confirm(`确定要删除自定义 Agent "${agent.label}" 吗？`)) {
                         const newCustom = (settings.customAgents || []).filter(ca => ca.id !== agent.id);
-                        const newEnabled = (settings.enabledAgentIds || agents.filter(a => a.installed).map(a => a.id)).filter(id => id !== agent.id);
+                        const newEnabled = (settings.enabledAgentIds || agents.map(a => a.id)).filter(id => id !== agent.id);
                         onChange({
                           ...settings,
                           customAgents: newCustom,
@@ -285,7 +285,7 @@ export function SettingsSheet({
                           projectRoots: newProjectRoot.trim() ? [newProjectRoot.trim()] : [],
                         };
                         const updatedCustomAgents = [...(settings.customAgents || []), newCustomAgent];
-                        const updatedEnabledAgentIds = [...(settings.enabledAgentIds || agents.filter(a => a.installed).map(a => a.id)), newAgentId.trim()];
+                        const updatedEnabledAgentIds = [...(settings.enabledAgentIds || agents.map(a => a.id)), newAgentId.trim()];
                         onChange({
                           ...settings,
                           customAgents: updatedCustomAgents,

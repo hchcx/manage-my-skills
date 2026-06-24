@@ -882,7 +882,7 @@ export default function App() {
         <SettingsSheet
           settings={draftSettings}
           inventory={inventory}
-          agents={installedAgents}
+          agents={agents.filter((a) => a.installed || settings.customAgents?.some(ca => ca.id === a.id))}
           skills={allSkills}
           onChange={setDraftSettings}
           onClose={() => {
