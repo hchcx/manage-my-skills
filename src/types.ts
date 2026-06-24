@@ -10,6 +10,7 @@ export type Settings = {
   autostart?: boolean;
   silentStart?: boolean;
   minimizeToTray?: boolean;
+  skillRepositories?: string[];
 };
 
 export type CustomRoot = {

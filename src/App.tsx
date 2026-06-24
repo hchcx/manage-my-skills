@@ -10,7 +10,7 @@ import { isTauriRuntime } from "./lib/runtime";
 import { failedUpdateCheck, projectSkillsForFolder, quickMigrationSourcesForSkills, samePath, skillsShUpdateSource, syncSourcesForSkills } from "./lib/skillUtils";
 import type { QuickMigrationMethod, SkillWorkspace, SyncMode, View } from "./uiTypes";
 import { SkillsView } from "./views/SkillsView";
-import { SyncView } from "./views/SyncView";
+import { DiscoveryView } from "./views/DiscoveryView";
 // @ts-ignore
 import appLogo from "./m-my-skills-logo.png";
 import type {
@@ -63,6 +63,9 @@ export default function App() {
   const [settingsDefaultTab, setSettingsDefaultTab] = useState<"data" | "agents" | "about">("data");
   const [hasScanned, setHasScanned] = useState(false);
   const [previouslyScanned, setPreviouslyScanned] = useState(false);
+  const [remoteSkills, setRemoteSkills] = useState<any[]>([]);
+  const [remoteSkillsLoading, setRemoteSkillsLoading] = useState(false);
+  const [remoteSkillsLoaded, setRemoteSkillsLoaded] = useState(false);
   const bootStartedRef = useRef(false);
   const discoveryRunRef = useRef(0);
 
@@ -416,6 +419,20 @@ export default function App() {
       // 4. 出错时触发静默扫描，自动回滚前端状态
       await refreshInventory(true);
       throw err;
+    }
+  }
+
+  async function updateSkillRepositories(nextSettings: AppSettings) {
+    setBusy("保存设置");
+    setError(null);
+    try {
+      const saved = await invoke<AppSettings>("save_settings", { settings: nextSettings });
+      setSettings(saved);
+      setDraftSettings(saved);
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setBusy("");
     }
   }
 
@@ -823,10 +840,10 @@ export default function App() {
             <img src={appLogo} alt="Manage My skills" />
           </button>
           <TabButton active={view === "skills"} onClick={() => setView("skills")}>
-            发现 Skills
+            Skills 管理
           </TabButton>
           <TabButton active={view === "sync"} onClick={() => setView("sync")}>
-            同步 Skills
+            发现技能
           </TabButton>
         </div>
 
@@ -912,28 +929,18 @@ export default function App() {
         ) : null}
 
         {view === "sync" && (
-          <SyncView
-            agents={installedAgents.length ? installedAgents : agents}
-            queuedSkills={queuedSkills}
+          <DiscoveryView
             settings={settings}
-            plan={syncPlan}
-            applyResult={applyResult}
-            busy={Boolean(busy)}
-            syncMode={syncMode}
-            onSyncModeChange={setSyncMode}
-            onRemoveSkill={(id) => {
-              setSelectedSkillIds((current) => {
-                const next = new Set(current);
-                next.delete(id);
-                return next;
-              });
-            }}
-            onPreviewGlobal={(targets) => void previewSkillsSync(queuedSkills, targets)}
-            onPreviewProject={(targets) => void previewSkillsSync(queuedSkills, targets)}
-            onPreviewQuick={(method, targets) => void previewQuickMigration(queuedSkills, method, targets)}
-            onChooseProject={chooseSyncProject}
-            onApply={() => void applyPlan()}
-            onGoSkills={() => setView("skills")}
+            agents={agents}
+            onUpdateSettings={updateSkillRepositories}
+            onShowToast={setToast}
+            onRefreshInventory={refreshInventory}
+            remoteSkills={remoteSkills}
+            setRemoteSkills={setRemoteSkills}
+            remoteSkillsLoading={remoteSkillsLoading}
+            setRemoteSkillsLoading={setRemoteSkillsLoading}
+            remoteSkillsLoaded={remoteSkillsLoaded}
+            setRemoteSkillsLoaded={setRemoteSkillsLoaded}
           />
         )}
       </section>

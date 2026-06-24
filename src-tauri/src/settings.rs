@@ -33,6 +33,20 @@ pub fn default_settings(app: &AppHandle) -> Result<Settings, String> {
         autostart: false,
         silent_start: false,
         minimize_to_tray: false,
+        skill_repositories: Some(vec![
+            "https://github.com/ComposioHQ/awesome-claude-skills.git".to_string(),
+            "https://github.com/JimLiu/baoyu-skills.git".to_string(),
+            "https://github.com/anthropics/skills.git".to_string(),
+            "https://github.com/stellarlinkco/myclaude.git".to_string(),
+            "https://github.com/coreyhaines31/marketingskills.git".to_string(),
+            "https://github.com/intellectronica/agent-skills.git".to_string(),
+            "https://github.com/jwynia/agent-skills.git".to_string(),
+            "https://github.com/nextlevelbuilder/ui-ux-pro-max.git".to_string(),
+            "https://github.com/onmax/nuxt-skills.git".to_string(),
+            "https://github.com/vercel-labs/agent-skills.git".to_string(),
+            "https://github.com/vercel-labs/skills.git".to_string(),
+            "https://github.com/borghei/claude-skills.git".to_string(),
+        ]),
     })
 }
 
@@ -63,6 +77,25 @@ pub fn load_settings(app: &AppHandle) -> Result<Settings, String> {
     }
     if settings.language.trim().is_empty() {
         settings.language = default.language;
+    }
+    if settings.skill_repositories.is_none() || settings.skill_repositories.as_ref().unwrap().is_empty() {
+        settings.skill_repositories = default.skill_repositories;
+    } else {
+        // 如果用户的配置里已有列表，但缺少默认列表中的某些新库，自动追加进去并保存
+        let mut repos = settings.skill_repositories.take().unwrap();
+        let mut changed = false;
+        if let Some(ref def_repos) = default.skill_repositories {
+            for def_repo in def_repos {
+                if !repos.contains(def_repo) {
+                    repos.push(def_repo.clone());
+                    changed = true;
+                }
+            }
+        }
+        settings.skill_repositories = Some(repos);
+        if changed {
+            let _ = save_settings(app, &settings);
+        }
     }
 
     Ok(settings)

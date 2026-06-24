@@ -5,6 +5,7 @@ import { agentSignalSummary, agentSkillCount, compactPath } from "../lib/skillUt
 import type { AgentRecord, InventorySnapshot, Settings as AppSettings, SkillRecord } from "../types";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { isTauriRuntime } from "../lib/runtime";
 import { getVersion } from "@tauri-apps/api/app";
 import defaultLogo from "../m-my-skills-logo.png";
@@ -36,6 +37,16 @@ export function SettingsSheet({
   const [appUpdateStatus, setAppUpdateStatus] = useState<"idle" | "checking" | "available" | "updating" | "latest">("idle");
   const [latestAppVersion, setLatestAppVersion] = useState("0.1.0");
   const [diagnosing, setDiagnosing] = useState(false);
+  const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
+  const [consoleTitle, setConsoleTitle] = useState("CLI 安装终端");
+  const [showConsole, setShowConsole] = useState(false);
+  const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (terminalEndRef.current) {
+      terminalEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [consoleLogs, showConsole]);
 
   useEffect(() => {
     const savedAppVersion = localStorage.getItem("cc_switch_app_version");
@@ -44,124 +55,217 @@ export function SettingsSheet({
     } else if (isTauriRuntime()) {
       getVersion().then(setAppVersion).catch(console.error);
     }
+    // 挂载时后台静默拉取一次最新 Agent 状态
+    void loadAgentCliStatuses();
   }, []);
 
+  type AgentStatusType = "not-installed" | "installing" | "upgradeable" | "updating" | "latest";
+
   const getInitialStatuses = (): {
-    claudeCode: { current: string; latest: string; status: "upgradeable" | "updating" | "latest" };
-    codex: { current: string; latest: string; status: "upgradeable" | "updating" | "latest" };
-    geminiCli: { current: string; latest: string; status: "upgradeable" | "updating" | "latest" };
-    openCode: { current: string; latest: string; status: "not-installed" | "installing" | "latest" };
+    claudeCode: { current: string; latest: string; status: AgentStatusType };
+    codex: { current: string; latest: string; status: AgentStatusType };
+    geminiCli: { current: string; latest: string; status: AgentStatusType };
+    openCode: { current: string; latest: string; status: AgentStatusType };
   } => {
-    const claudeVer = localStorage.getItem("agent_claudeCode_version") || "2.1.177";
-    const codexVer = localStorage.getItem("agent_codex_version") || "0.139.0";
-    const geminiVer = localStorage.getItem("agent_geminiCli_version") || "0.46.0";
+    const claudeVer = localStorage.getItem("agent_claudeCode_version") || "未安装";
+    const codexVer = localStorage.getItem("agent_codex_version") || "未安装";
+    const geminiVer = localStorage.getItem("agent_geminiCli_version") || "未安装";
     const openCodeVer = localStorage.getItem("agent_openCode_version") || "未安装";
+
+    const claudeLatest = localStorage.getItem("agent_claudeCode_latest") || "2.1.187";
+    const codexLatest = localStorage.getItem("agent_codex_latest") || "0.2.3";
+    const geminiLatest = localStorage.getItem("agent_geminiCli_latest") || "0.47.0";
+    const openCodeLatest = localStorage.getItem("agent_openCode_latest") || "1.17.9";
 
     return {
       claudeCode: {
         current: claudeVer,
-        latest: "2.1.187",
-        status: claudeVer === "2.1.187" ? "latest" : "upgradeable"
+        latest: claudeLatest,
+        status: claudeVer === "未安装" ? "not-installed" : (claudeVer === claudeLatest ? "latest" : "upgradeable")
       },
       codex: {
         current: codexVer,
-        latest: "0.142.0",
-        status: codexVer === "0.142.0" ? "latest" : "upgradeable"
+        latest: codexLatest,
+        status: codexVer === "未安装" ? "not-installed" : (codexVer === codexLatest ? "latest" : "upgradeable")
       },
       geminiCli: {
         current: geminiVer,
-        latest: "0.47.0",
-        status: geminiVer === "0.47.0" ? "latest" : "upgradeable"
+        latest: geminiLatest,
+        status: geminiVer === "未安装" ? "not-installed" : (geminiVer === geminiLatest ? "latest" : "upgradeable")
       },
       openCode: {
         current: openCodeVer,
-        latest: "1.17.9",
-        status: openCodeVer === "1.17.9" ? "latest" : "not-installed"
+        latest: openCodeLatest,
+        status: openCodeVer === "未安装" ? "not-installed" : (openCodeVer === openCodeLatest ? "latest" : "upgradeable")
       }
     };
   };
 
-  const [agentStatuses, setAgentStatuses] = useState(getInitialStatuses);
+  const [agentStatuses, setAgentStatuses] = useState<{
+    claudeCode: { current: string; latest: string; status: AgentStatusType };
+    codex: { current: string; latest: string; status: AgentStatusType };
+    geminiCli: { current: string; latest: string; status: AgentStatusType };
+    openCode: { current: string; latest: string; status: AgentStatusType };
+  }>(getInitialStatuses);
 
-  const upgradeAgent = (key: "claudeCode" | "codex" | "geminiCli") => {
+  const loadAgentCliStatuses = async () => {
+    if (!isTauriRuntime()) return;
+    try {
+      const res = await invoke<any>("get_agent_cli_statuses");
+      setAgentStatuses(res);
+      // 保存至缓存，避免下次点开回弹到硬编码初始值
+      if (res.claudeCode?.current) localStorage.setItem("agent_claudeCode_version", res.claudeCode.current);
+      if (res.claudeCode?.latest) localStorage.setItem("agent_claudeCode_latest", res.claudeCode.latest);
+      
+      if (res.codex?.current) localStorage.setItem("agent_codex_version", res.codex.current);
+      if (res.codex?.latest) localStorage.setItem("agent_codex_latest", res.codex.latest);
+      
+      if (res.geminiCli?.current) localStorage.setItem("agent_geminiCli_version", res.geminiCli.current);
+      if (res.geminiCli?.latest) localStorage.setItem("agent_geminiCli_latest", res.geminiCli.latest);
+      
+      if (res.openCode?.current) localStorage.setItem("agent_openCode_version", res.openCode.current);
+      if (res.openCode?.latest) localStorage.setItem("agent_openCode_latest", res.openCode.latest);
+    } catch (err) {
+      console.error("加载 Agent CLI 版本失败:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (settingsTab === "about") {
+      void loadAgentCliStatuses();
+    }
+  }, [settingsTab]);
+
+  const runInstallWorkflow = async (key: "claudeCode" | "codex" | "geminiCli" | "openCode", label: string) => {
     setAgentStatuses(prev => ({
       ...prev,
-      [key]: { ...prev[key], status: "updating" }
+      [key]: { ...prev[key], status: key === "openCode" ? "installing" : "updating" }
     }));
-    setTimeout(() => {
-      const latestVer = key === "claudeCode" ? "2.1.187" : key === "codex" ? "0.142.0" : "0.47.0";
-      localStorage.setItem(`agent_${key}_version`, latestVer);
-      setAgentStatuses(prev => ({
-        ...prev,
-        [key]: { ...prev[key], current: latestVer, status: "latest" }
-      }));
-      const labelMap = { claudeCode: "Claude Code", codex: "Codex", geminiCli: "Gemini CLI" };
-      showPrompt(`${labelMap[key]} 升级成功！当前已是最新版本。`);
-    }, 1200);
+    setShowConsole(true);
+    setConsoleTitle(`CLI 命令安装面板 - ${label}`);
+    setConsoleLogs([
+      `[System] 准备对 ${label} 执行 npm 一键全局安装或升级...`,
+      `[System] 正在连接本地 Tauri 异步管道以流式捕获输出...`
+    ]);
+
+    let unlistenFn: (() => void) | null = null;
+    try {
+      if (isTauriRuntime()) {
+        unlistenFn = await listen<any>("cli-install-log", (event) => {
+          const payload = event.payload;
+          if (payload.stream === "status") {
+            setConsoleLogs(prev => [...prev, `[System] ${payload.text}`]);
+          } else if (payload.stream === "stdout") {
+            setConsoleLogs(prev => [...prev, payload.text]);
+          } else if (payload.stream === "stderr") {
+            const text = payload.text;
+            const isWarn = text.toLowerCase().includes("warn") || text.toLowerCase().includes("deprecated");
+            if (isWarn) {
+              setConsoleLogs(prev => [...prev, `[Warning] ${text}`]);
+            } else {
+              setConsoleLogs(prev => [...prev, `[Error] ${text}`]);
+            }
+          }
+        });
+
+        await invoke("run_agent_cli_install", { agentId: key });
+        await loadAgentCliStatuses();
+        showPrompt(`${label} 操作已成功完成！`);
+      } else {
+        setTimeout(() => {
+          setConsoleLogs(prev => [...prev, `[System] 模拟安装 ${label} 成功！`]);
+          const latestVer = key === "claudeCode" ? "2.1.187" : key === "codex" ? "0.142.0" : key === "geminiCli" ? "0.47.0" : "1.17.9";
+          localStorage.setItem(`agent_${key}_version`, latestVer);
+          setAgentStatuses(prev => ({
+            ...prev,
+            [key]: { ...prev[key], current: latestVer, status: "latest" }
+          }));
+          showPrompt(`${label} 安装成功！`);
+        }, 1500);
+      }
+    } catch (err: any) {
+      setConsoleLogs(prev => [...prev, `[Fatal] 命令执行发生异常错误: ${err}`]);
+      showPrompt(`操作失败: ${err}`);
+      void loadAgentCliStatuses();
+    } finally {
+      if (unlistenFn) {
+        unlistenFn();
+      }
+    }
+  };
+
+  const upgradeAgent = (key: "claudeCode" | "codex" | "geminiCli") => {
+    const labelMap = { claudeCode: "Claude Code", codex: "Codex", geminiCli: "Gemini CLI" };
+    void runInstallWorkflow(key, labelMap[key]);
   };
 
   const installOpenCode = () => {
-    setAgentStatuses(prev => ({
-      ...prev,
-      openCode: { ...prev.openCode, status: "installing" }
-    }));
-    setTimeout(() => {
-      localStorage.setItem("agent_openCode_version", "1.17.9");
-      setAgentStatuses(prev => ({
-        ...prev,
-        openCode: { current: "1.17.9", latest: "1.17.9", status: "latest" }
-      }));
-      showPrompt("OpenCode 安装成功！已经配置完成全局软链接。");
-    }, 1500);
+    void runInstallWorkflow("openCode", "OpenCode");
   };
 
-  const upgradeAllAgents = () => {
-    setAgentStatuses(prev => {
-      const next = { ...prev };
-      if (next.claudeCode.status === "upgradeable") next.claudeCode.status = "updating";
-      if (next.codex.status === "upgradeable") next.codex.status = "updating";
-      if (next.geminiCli.status === "upgradeable") next.geminiCli.status = "updating";
-      return next;
-    });
-    setTimeout(() => {
-      localStorage.setItem("agent_claudeCode_version", "2.1.187");
-      localStorage.setItem("agent_codex_version", "0.142.0");
-      localStorage.setItem("agent_geminiCli_version", "0.47.0");
-      setAgentStatuses(prev => ({
-        ...prev,
-        claudeCode: { ...prev.claudeCode, current: "2.1.187", status: "latest" },
-        codex: { ...prev.codex, current: "0.142.0", status: "latest" },
-        geminiCli: { ...prev.geminiCli, current: "0.47.0", status: "latest" }
-      }));
-      showPrompt("所有 Agent 均已成功升级至最新版本！");
-    }, 1500);
+  const upgradeAllAgents = async () => {
+    const upgradableKeys: ("claudeCode" | "codex" | "geminiCli")[] = [];
+    if (agentStatuses.claudeCode.status === "upgradeable") upgradableKeys.push("claudeCode");
+    if (agentStatuses.codex.status === "upgradeable") upgradableKeys.push("codex");
+    if (agentStatuses.geminiCli.status === "upgradeable") upgradableKeys.push("geminiCli");
+
+    if (upgradableKeys.length === 0) {
+      showPrompt("当前暂无可升级的 Agent。");
+      return;
+    }
+
+    const labelMap = { claudeCode: "Claude Code", codex: "Codex", geminiCli: "Gemini CLI" };
+    
+    for (const key of upgradableKeys) {
+      await runInstallWorkflow(key, labelMap[key]);
+    }
+    showPrompt("所有 Agent 升级队列执行完毕！");
   };
 
-  const refreshEnv = () => {
+  const refreshEnv = async () => {
     setCheckingUpdate(true);
-    setTimeout(() => {
-      setCheckingUpdate(false);
-      localStorage.removeItem("agent_claudeCode_version");
-      localStorage.removeItem("agent_codex_version");
-      localStorage.removeItem("agent_geminiCli_version");
-      localStorage.removeItem("agent_openCode_version");
-      setAgentStatuses({
-        claudeCode: { current: "2.1.177", latest: "2.1.187", status: "upgradeable" },
-        codex: { current: "0.139.0", latest: "0.142.0", status: "upgradeable" },
-        geminiCli: { current: "0.46.0", latest: "0.47.0", status: "upgradeable" },
-        openCode: { current: "未安装", latest: "1.17.9", status: "not-installed" }
-      });
-      showPrompt("已成功重新扫描本地环境并刷新 Agent 版本状态！");
-    }, 800);
+    if (isTauriRuntime()) {
+      await loadAgentCliStatuses();
+      setTimeout(() => {
+        setCheckingUpdate(false);
+        showPrompt("已成功扫描本地环境并刷新当前 CLI 状态！");
+      }, 500);
+    } else {
+      setTimeout(() => {
+        setCheckingUpdate(false);
+        localStorage.removeItem("agent_claudeCode_version");
+        localStorage.removeItem("agent_codex_version");
+        localStorage.removeItem("agent_geminiCli_version");
+        localStorage.removeItem("agent_openCode_version");
+        setAgentStatuses(getInitialStatuses());
+        showPrompt("已成功模拟刷新 Agent 版本状态！");
+      }, 800);
+    }
   };
 
-  const handleDiagnose = () => {
+  const handleDiagnose = async () => {
     if (diagnosing) return;
     setDiagnosing(true);
-    setTimeout(() => {
+    try {
+      if (isTauriRuntime()) {
+        const report = await invoke<any>("diagnose_agent_collisions");
+        setDiagnosing(false);
+        if (report.healthy) {
+          showPrompt("✅ 环境健康度 100%！本地 Agent 目录与命令行工具无任何重名冲突或损坏软链接。");
+        } else {
+          const listStr = report.issues.map((iss: string) => `• ${iss}`).join("\n");
+          showPrompt(`⚠️ 诊断到潜在冲突 (健康得分: ${report.score}/100):\n${listStr}`);
+        }
+      } else {
+        setTimeout(() => {
+          setDiagnosing(false);
+          showPrompt("已完成全局软链接与环境配置诊断，未检测到任何重名冲突或失效路径，环境健康度 100%！");
+        }, 800);
+      }
+    } catch (err) {
       setDiagnosing(false);
-      showPrompt("已完成全局软链接与环境配置诊断，未检测到任何重名冲突或失效路径，环境健康度 100%！");
-    }, 800);
+      showPrompt(`诊断过程发生错误: ${err}`);
+    }
   };
 
   const openUrl = async (url: string | null) => {
@@ -1179,7 +1283,7 @@ export function SettingsSheet({
               </div>
 
               {/* 本地环境检查区域 */}
-              <section className="settings-section" style={{ borderTop: "none", paddingTop: 0, marginTop: "10px" }}>
+              <section className="settings-section" style={{ padding: "20px", marginTop: "14px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                   <h2 style={{ fontSize: "14px", fontWeight: "600", color: "#181a1d", margin: 0 }}>本地环境检查</h2>
                   <div style={{ display: "flex", gap: "8px" }}>
@@ -1234,13 +1338,13 @@ export function SettingsSheet({
                 <div style={{
                   display: "grid",
                   gridTemplateColumns: "repeat(2, 1fr)",
-                  gap: "16px"
+                  gap: "24px"
                 }}>
                   {/* Claude Code */}
                   <div style={{
                     border: "1px solid rgba(24, 26, 29, 0.08)",
-                    borderRadius: "10px",
-                    padding: "16px",
+                    borderRadius: "12px",
+                    padding: "22px",
                     background: "#fff",
                     display: "flex",
                     justifyContent: "space-between",
@@ -1254,7 +1358,7 @@ export function SettingsSheet({
                       <div style={{ fontSize: "12px", color: "rgba(24, 26, 29, 0.5)", display: "flex", flexDirection: "column", gap: "4px" }}>
                         <div style={{ display: "flex", gap: "10px", width: "120px" }}>
                           <span style={{ width: "50px" }}>当前版本</span>
-                          <strong style={{ color: "#181a1d" }}>{agentStatuses.claudeCode.current}</strong>
+                          <strong style={{ color: agentStatuses.claudeCode.current === "未安装" ? "#6b7280" : "#181a1d" }}>{agentStatuses.claudeCode.current}</strong>
                         </div>
                         <div style={{ display: "flex", gap: "10px", width: "120px" }}>
                           <span style={{ width: "50px" }}>最新版本</span>
@@ -1263,6 +1367,34 @@ export function SettingsSheet({
                       </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px" }}>
+                      {agentStatuses.claudeCode.status === "not-installed" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#dc2626", background: "rgba(220, 38, 38, 0.08)", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>未安装</span>
+                          <button 
+                            className="primary-button" 
+                            onClick={() => runInstallWorkflow("claudeCode", "Claude Code")}
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#2563eb", border: "none", color: "#fff", borderRadius: "4px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <Download size={10} />
+                            <span>安装</span>
+                          </button>
+                        </>
+                      )}
+                      {agentStatuses.claudeCode.status === "installing" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#2563eb", background: "#eff6ff", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>安装中...</span>
+                          <button 
+                            className="primary-button" 
+                            disabled
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#93c5fd", border: "none", color: "#fff", borderRadius: "4px", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <RefreshCw size={10} className="spin" />
+                            <span>进行中</span>
+                          </button>
+                        </>
+                      )}
                       {agentStatuses.claudeCode.status === "upgradeable" && (
                         <>
                           <span style={{ fontSize: "10px", color: "#b45309", background: "#fef3c7", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>可升级</span>
@@ -1300,8 +1432,8 @@ export function SettingsSheet({
                   {/* Codex */}
                   <div style={{
                     border: "1px solid rgba(24, 26, 29, 0.08)",
-                    borderRadius: "10px",
-                    padding: "16px",
+                    borderRadius: "12px",
+                    padding: "22px",
                     background: "#fff",
                     display: "flex",
                     justifyContent: "space-between",
@@ -1315,7 +1447,7 @@ export function SettingsSheet({
                       <div style={{ fontSize: "12px", color: "rgba(24, 26, 29, 0.5)", display: "flex", flexDirection: "column", gap: "4px" }}>
                         <div style={{ display: "flex", gap: "10px", width: "120px" }}>
                           <span style={{ width: "50px" }}>当前版本</span>
-                          <strong style={{ color: "#181a1d" }}>{agentStatuses.codex.current}</strong>
+                          <strong style={{ color: agentStatuses.codex.current === "未安装" ? "#6b7280" : "#181a1d" }}>{agentStatuses.codex.current}</strong>
                         </div>
                         <div style={{ display: "flex", gap: "10px", width: "120px" }}>
                           <span style={{ width: "50px" }}>最新版本</span>
@@ -1324,6 +1456,34 @@ export function SettingsSheet({
                       </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px" }}>
+                      {agentStatuses.codex.status === "not-installed" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#dc2626", background: "rgba(220, 38, 38, 0.08)", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>未安装</span>
+                          <button 
+                            className="primary-button" 
+                            onClick={() => runInstallWorkflow("codex", "Codex")}
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#2563eb", border: "none", color: "#fff", borderRadius: "4px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <Download size={10} />
+                            <span>安装</span>
+                          </button>
+                        </>
+                      )}
+                      {agentStatuses.codex.status === "installing" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#2563eb", background: "#eff6ff", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>安装中...</span>
+                          <button 
+                            className="primary-button" 
+                            disabled
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#93c5fd", border: "none", color: "#fff", borderRadius: "4px", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <RefreshCw size={10} className="spin" />
+                            <span>进行中</span>
+                          </button>
+                        </>
+                      )}
                       {agentStatuses.codex.status === "upgradeable" && (
                         <>
                           <span style={{ fontSize: "10px", color: "#b45309", background: "#fef3c7", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>可升级</span>
@@ -1361,8 +1521,8 @@ export function SettingsSheet({
                   {/* Gemini CLI */}
                   <div style={{
                     border: "1px solid rgba(24, 26, 29, 0.08)",
-                    borderRadius: "10px",
-                    padding: "16px",
+                    borderRadius: "12px",
+                    padding: "22px",
                     background: "#fff",
                     display: "flex",
                     justifyContent: "space-between",
@@ -1376,7 +1536,7 @@ export function SettingsSheet({
                       <div style={{ fontSize: "12px", color: "rgba(24, 26, 29, 0.5)", display: "flex", flexDirection: "column", gap: "4px" }}>
                         <div style={{ display: "flex", gap: "10px", width: "120px" }}>
                           <span style={{ width: "50px" }}>当前版本</span>
-                          <strong style={{ color: "#181a1d" }}>{agentStatuses.geminiCli.current}</strong>
+                          <strong style={{ color: agentStatuses.geminiCli.current === "未安装" ? "#6b7280" : "#181a1d" }}>{agentStatuses.geminiCli.current}</strong>
                         </div>
                         <div style={{ display: "flex", gap: "10px", width: "120px" }}>
                           <span style={{ width: "50px" }}>最新版本</span>
@@ -1385,6 +1545,34 @@ export function SettingsSheet({
                       </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px" }}>
+                      {agentStatuses.geminiCli.status === "not-installed" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#dc2626", background: "rgba(220, 38, 38, 0.08)", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>未安装</span>
+                          <button 
+                            className="primary-button" 
+                            onClick={() => runInstallWorkflow("geminiCli", "Gemini CLI")}
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#2563eb", border: "none", color: "#fff", borderRadius: "4px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <Download size={10} />
+                            <span>安装</span>
+                          </button>
+                        </>
+                      )}
+                      {agentStatuses.geminiCli.status === "installing" && (
+                        <>
+                          <span style={{ fontSize: "10px", color: "#2563eb", background: "#eff6ff", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>安装中...</span>
+                          <button 
+                            className="primary-button" 
+                            disabled
+                            style={{ height: "26px", padding: "0 10px", fontSize: "11px", background: "#93c5fd", border: "none", color: "#fff", borderRadius: "4px", display: "flex", alignItems: "center", gap: "4px" }}
+                            type="button"
+                          >
+                            <RefreshCw size={10} className="spin" />
+                            <span>进行中</span>
+                          </button>
+                        </>
+                      )}
                       {agentStatuses.geminiCli.status === "upgradeable" && (
                         <>
                           <span style={{ fontSize: "10px", color: "#b45309", background: "#fef3c7", padding: "2px 6px", borderRadius: "4px", fontWeight: "500" }}>可升级</span>
@@ -1422,8 +1610,8 @@ export function SettingsSheet({
                   {/* OpenCode */}
                   <div style={{
                     border: "1px solid rgba(24, 26, 29, 0.08)",
-                    borderRadius: "10px",
-                    padding: "16px",
+                    borderRadius: "12px",
+                    padding: "22px",
                     background: "#fff",
                     display: "flex",
                     justifyContent: "space-between",
@@ -1502,6 +1690,85 @@ export function SettingsSheet({
           </div>
         )}
       </aside>
+
+      {showConsole && (
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          style={{
+          position: "absolute",
+          bottom: "80px",
+          left: "24px",
+          right: "24px",
+          height: "200px",
+          background: "rgba(15, 23, 42, 0.95)",
+          backdropFilter: "blur(12px)",
+          borderRadius: "12px",
+          border: "1px solid rgba(255, 255, 255, 0.15)",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          zIndex: 99
+        }}>
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "8px 16px",
+            background: "rgba(30, 41, 59, 0.5)",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.1)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#ef4444" }}></div>
+              <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#fbbf24" }}></div>
+              <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981" }}></div>
+              <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "600", fontFamily: "monospace", marginLeft: "4px" }}>
+                {consoleTitle}
+              </span>
+            </div>
+            <button 
+              onClick={() => setShowConsole(false)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#94a3b8",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                padding: "4px"
+              }}
+              type="button"
+            >
+              <Minimize2 size={12} />
+            </button>
+          </div>
+          <div style={{
+            flex: 1,
+            padding: "12px 16px",
+            overflowY: "auto",
+            fontFamily: "Consolas, Monaco, monospace",
+            fontSize: "11px",
+            color: "#e2e8f0",
+            lineHeight: "1.6",
+            textAlign: "left",
+            background: "#090d16"
+          }}>
+            {consoleLogs.map((log, i) => {
+              let color = "#e2e8f0";
+              if (log.startsWith("[Error]")) color = "#f87171";
+              else if (log.startsWith("[Fatal]")) color = "#f87171";
+              else if (log.startsWith("[Warning]")) color = "#fbbf24";
+              else if (log.startsWith("[System]")) color = "#38bdf8";
+              return (
+                <div key={i} style={{ color, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                  {log}
+                </div>
+              );
+            })}
+            <div ref={terminalEndRef} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

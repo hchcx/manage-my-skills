@@ -34,7 +34,7 @@ export const demoAgents: AgentRecord[] = [
   demoAgent('trae', 'TRAE', 'installed', 1, ['app']),
   demoAgent('trae_cn', 'TRAE CN', 'not-installed', 0, []),
   demoAgent('warp', 'Warp', 'not-installed', 0, []),
-  demoAgent('windsurf', 'Windsurf', 'installed', 3, ['app']),
+  demoAgent('windsurf', 'Devin', 'installed', 3, ['app']),
   demoAgent('workbuddy', 'WorkBuddy', 'not-installed', 0, []),
   demoAgent('zed', 'Zed', 'installed', 2, ['app']),
 ]

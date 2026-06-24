@@ -274,12 +274,21 @@ pub fn known_agents(settings: &Settings) -> Vec<AgentDefinition> {
         ),
         agent(
             "windsurf",
-            "Windsurf",
-            &["~/.codeium/windsurf/skills"],
-            &[".windsurf/skills"],
-            &["~/.codeium/windsurf"],
-            &["windsurf"],
-            &["/Applications/Windsurf.app", "~/Applications/Windsurf.app"],
+            "Devin",
+            &[
+                "~/.codeium/windsurf/skills",
+                "~/.codeium/devin/skills",
+                "~/.devin/skills",
+            ],
+            &[".windsurf/skills", ".devin/skills"],
+            &["~/.codeium/windsurf", "~/.codeium/devin", "~/.devin"],
+            &["windsurf", "devin"],
+            &[
+                "/Applications/Windsurf.app",
+                "~/Applications/Windsurf.app",
+                "/Applications/Devin.app",
+                "~/Applications/Devin.app",
+            ],
             26,
         ),
         agent(
@@ -982,6 +991,8 @@ fn extension_search_roots() -> Vec<PathBuf> {
         "~/.cursor-insiders/extensions",
         "~/.windsurf/extensions",
         "~/.codeium/windsurf/extensions",
+        "~/.devin/extensions",
+        "~/.codeium/devin/extensions",
         "~/.trae/extensions",
         "~/.kiro/extensions",
     ] {
@@ -1225,7 +1236,7 @@ mod tests {
         assert!(labels.contains(&"TRAE".to_string()));
         assert!(labels.contains(&"TRAE CN".to_string()));
         assert!(labels.contains(&"Warp".to_string()));
-        assert!(labels.contains(&"Windsurf".to_string()));
+        assert!(labels.contains(&"Devin".to_string()));
         assert!(labels.contains(&"WorkBuddy".to_string()));
         assert!(labels.contains(&"Zed".to_string()));
     }
@@ -1388,6 +1399,7 @@ enabled = true
             language: "zh-CN".to_string(),
             enabled_agent_ids: None,
             custom_agents: None,
+            ..Default::default()
         };
         let candidates =
             discover_project_workspaces(&path_to_string(temp.path()), &settings).expect("discover");

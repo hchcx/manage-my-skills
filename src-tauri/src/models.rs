@@ -33,6 +33,8 @@ pub struct Settings {
     pub silent_start: bool,
     #[serde(default)]
     pub minimize_to_tray: bool,
+    #[serde(default)]
+    pub skill_repositories: Option<Vec<String>>,
 }
 
 impl Default for Settings {
@@ -49,6 +51,7 @@ impl Default for Settings {
             autostart: false,
             silent_start: false,
             minimize_to_tray: false,
+            skill_repositories: None,
         }
     }
 }
@@ -310,4 +313,26 @@ pub struct ApplyResult {
     pub skipped_operations: Vec<String>,
     pub errors: Vec<String>,
     pub inventory_refresh_recommended: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteSkillInfo {
+    pub slug: String,
+    pub display_name: String,
+    pub description: Option<String>,
+    pub repo_url: String,
+    pub relative_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteInstallArgs {
+    pub repo_url: String,
+    pub relative_path: String,
+    pub slug: String,
+    pub agent_ids: Vec<String>,
+    pub scope: String,
+    pub project_path: Option<String>,
+    pub method: String,
 }

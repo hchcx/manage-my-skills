@@ -8,8 +8,9 @@ use chrono::Utc;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use tauri::AppHandle;
+use std::process::{Command, Stdio};
+use std::io::{BufRead, BufReader};
+use tauri::{AppHandle, Emitter};
 use sha2::{Sha256, Digest};
 use std::sync::OnceLock;
 use std::sync::Mutex;
@@ -281,13 +282,11 @@ fn url_to_cache_dir_name(url: &str) -> String {
     format!("{:x}", result)
 }
 
-fn checkout_skills_sh_source(
+fn checkout_repo(
     app: &AppHandle,
-    slug: &str,
-    source_url: &str,
-    skill_path: Option<&str>,
+    repo_url: &str,
 ) -> Result<PathBuf, String> {
-    let clone_url = normalize_github_url(source_url)?;
+    let clone_url = normalize_github_url(repo_url)?;
     
     // 生成唯一的本地缓存文件夹名
     let cache_dir_name = url_to_cache_dir_name(&clone_url);
@@ -359,6 +358,16 @@ fn checkout_skills_sh_source(
         }
     }
 
+    Ok(repo_path)
+}
+
+fn checkout_skills_sh_source(
+    app: &AppHandle,
+    slug: &str,
+    source_url: &str,
+    skill_path: Option<&str>,
+) -> Result<PathBuf, String> {
+    let repo_path = checkout_repo(app, source_url)?;
     let source = resolve_skill_path(&repo_path, slug, skill_path).ok_or_else(|| {
         format!(
             "Unable to find skill '{slug}' in cloned repository {}",
@@ -375,21 +384,29 @@ fn checkout_skills_sh_source(
 }
 
 fn normalize_github_url(source_url: &str) -> Result<String, String> {
-    let trimmed = source_url
-        .trim()
+    let trimmed = source_url.trim();
+    
+    if trimmed.ends_with(".git") || trimmed.starts_with("git@") {
+        return Ok(trimmed.to_string());
+    }
+
+    let trimmed_clean = trimmed
         .trim_end_matches('/')
         .trim_end_matches(".git");
 
-    let path = if let Some(rest) = trimmed.strip_prefix("git@github.com:") {
+    let path = if let Some(rest) = trimmed_clean.strip_prefix("git@github.com:") {
         rest.to_string()
-    } else if let Some(rest) = trimmed.strip_prefix("github.com/") {
+    } else if let Some(rest) = trimmed_clean.strip_prefix("github.com/") {
         rest.to_string()
-    } else if let Some(rest) = trimmed.strip_prefix("https://github.com/") {
+    } else if let Some(rest) = trimmed_clean.strip_prefix("https://github.com/") {
         rest.to_string()
-    } else if looks_like_github_slug(trimmed) {
-        trimmed.to_string()
+    } else if looks_like_github_slug(trimmed_clean) {
+        trimmed_clean.to_string()
     } else {
-        return Err("skills.sh update currently supports GitHub sources only".to_string());
+        if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+            return Ok(trimmed.to_string());
+        }
+        return Err("当前仅支持 GitHub 仓库源或有效的 Git 仓库链接".to_string());
     };
 
     Ok(format!("https://github.com/{path}.git"))
@@ -681,4 +698,535 @@ This is a workspace skill. Add your custom instructions and tools here.
 
     Ok(())
 }
+
+use crate::models::{RemoteSkillInfo, RemoteInstallArgs};
+
+#[tauri::command]
+pub async fn list_remote_skills(
+    app: AppHandle,
+    repo_url: Option<String>,
+) -> Result<Vec<RemoteSkillInfo>, String> {
+    let app_clone = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let settings = settings::load_settings(&app_clone)?;
+        let repos = if let Some(url) = repo_url {
+            vec![url]
+        } else {
+            let all = settings.skill_repositories.unwrap_or_default();
+            if all.is_empty() {
+                Vec::new()
+            } else {
+                vec![all[0].clone()]
+            }
+        };
+        let mut all_skills = Vec::new();
+
+        for repo_url in repos {
+            let repo_path = match checkout_repo(&app_clone, &repo_url) {
+                Ok(path) => path,
+                Err(err) => {
+                    println!("Failed to checkout repository {}: {}", repo_url, err);
+                    continue;
+                }
+            };
+
+            let mut candidates = Vec::new();
+            find_skill_dirs(&repo_path, &repo_path, 0, &mut candidates);
+
+            for skill_dir in candidates {
+                let skill_md = skill_dir.join("SKILL.md");
+                let slug = skill_dir
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown")
+                    .to_string();
+
+                let (display_name, description) = match fs::read_to_string(&skill_md) {
+                    Ok(text) => {
+                        let (fm, _) = scanner::parse_skill_markdown(&text);
+                        if let Some(fm) = fm {
+                            let name = fm.name.unwrap_or_else(|| slug.clone());
+                            let desc = fm.description;
+                            (name, desc)
+                        } else {
+                            (slug.clone(), None)
+                        }
+                    }
+                    Err(_) => (slug.clone(), None),
+                };
+
+                let relative_path = match skill_dir.strip_prefix(&repo_path) {
+                    Ok(rel) => fs_ops::path_to_string(rel),
+                    Err(_) => String::new(),
+                };
+
+                all_skills.push(RemoteSkillInfo {
+                    slug,
+                    display_name,
+                    description,
+                    repo_url: repo_url.clone(),
+                    relative_path,
+                });
+            }
+        }
+
+        Ok(all_skills)
+    })
+    .await
+    .map_err(|e| format!("Spawn blocking error: {e}"))?
+}
+
+fn find_skill_dirs(base_path: &Path, current_path: &Path, depth: u32, results: &mut Vec<PathBuf>) {
+    if depth > 3 {
+        return;
+    }
+
+    if current_path.join("SKILL.md").exists() {
+        results.push(current_path.to_path_buf());
+        return;
+    }
+
+    let Ok(entries) = fs::read_dir(current_path) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.file_name().and_then(|n| n.to_str()).is_some_and(|name| name.starts_with('.')) {
+            continue;
+        }
+        if path.is_dir() {
+            find_skill_dirs(base_path, &path, depth + 1, results);
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn install_remote_skill(
+    app: AppHandle,
+    args: RemoteInstallArgs,
+) -> Result<(), String> {
+    let app_clone = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let settings = settings::load_settings(&app_clone)?;
+        
+        let repo_path = checkout_repo(&app_clone, &args.repo_url)?;
+        let source_dir = if args.relative_path.is_empty() {
+            repo_path
+        } else {
+            repo_path.join(&args.relative_path)
+        };
+
+        if !source_dir.join("SKILL.md").exists() {
+            return Err(format!(
+                "在缓存仓库中未找到合法的 Skill 目录：{:?}",
+                source_dir
+            ));
+        }
+
+        let final_source_dir = if args.method == "managed" {
+            let library_root = PathBuf::from(&settings.library_path);
+            if !library_root.exists() {
+                fs_ops::ensure_dir(&library_root)?;
+            }
+            let library_skill_dir = library_root.join(&args.slug);
+            
+            if library_skill_dir.exists() {
+                fs_ops::remove_entry(&library_skill_dir)?;
+            }
+            fs_ops::copy_dir_recursive(&source_dir, &library_skill_dir)?;
+            library_skill_dir
+        } else {
+            source_dir
+        };
+
+        for agent_id in args.agent_ids {
+            let Some(agent) = registry::find_agent(&settings, &agent_id) else {
+                return Err(format!("未找到指定的 Agent: {}", agent_id));
+            };
+
+            let target_root = if args.scope == "project" {
+                let proj_path = args.project_path.as_ref().ok_or_else(|| {
+                    "Scope为项目时必须提供 project_path".to_string()
+                })?;
+                let proj_root_rel = agent.project_roots.first().ok_or_else(|| {
+                    format!("Agent {} 未配置项目 roots 路径", agent.label)
+                })?;
+                PathBuf::from(proj_path).join(proj_root_rel)
+            } else {
+                let global_root_rel = agent.global_roots.first().ok_or_else(|| {
+                    format!("Agent {} 未配置全局 roots 路径", agent.label)
+                })?;
+                fs_ops::expand_home(global_root_rel)
+            };
+
+            if !target_root.exists() {
+                fs_ops::ensure_dir(&target_root)?;
+            }
+
+            let target_skill_dir = target_root.join(&args.slug);
+
+            if target_skill_dir.exists() || fs::symlink_metadata(&target_skill_dir).is_ok() {
+                let metadata = fs::symlink_metadata(&target_skill_dir)
+                    .map_err(|e| format!("无法检查目标路径 {}: {}", fs_ops::path_to_string(&target_skill_dir), e))?;
+
+                if metadata.file_type().is_symlink() {
+                    fs_ops::remove_entry(&target_skill_dir)?;
+                } else {
+                    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
+                    let parent = target_skill_dir.parent().ok_or_else(|| "无法获取目标父级目录".to_string())?;
+                    let backup_name = format!("{}.bak_{}", args.slug, timestamp);
+                    let mut backup_path = parent.join(&backup_name);
+                    
+                    let mut counter = 1;
+                    while backup_path.exists() {
+                        backup_path = parent.join(format!("{}.bak_{}_{}", args.slug, timestamp, counter));
+                        counter += 1;
+                    }
+
+                    fs::rename(&target_skill_dir, &backup_path).map_err(|error| {
+                        format!(
+                            "安装时备份冲突物理目录 {} 失败: {}",
+                            fs_ops::path_to_string(&target_skill_dir),
+                            error
+                        )
+                    })?;
+                }
+            }
+
+            if args.method == "copy" {
+                fs_ops::copy_dir_recursive(&final_source_dir, &target_skill_dir)?;
+            } else {
+                fs_ops::create_symlink(&final_source_dir, &target_skill_dir)?;
+            }
+        }
+
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("Spawn blocking error: {e}"))?
+}
+
+fn run_command_in_shell(bin_name: &str, args: &[&str]) -> Result<String, String> {
+    let mut cmd = if cfg!(target_os = "windows") {
+        let mut c = Command::new("cmd");
+        c.arg("/C").arg(bin_name);
+        c
+    } else {
+        Command::new(bin_name)
+    };
+    cmd.args(args);
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+    
+    let child = cmd.spawn().map_err(|e| e.to_string())?;
+    let output = child.wait_with_output().map_err(|e| e.to_string())?;
+    
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    } else {
+        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        Err(if err_msg.is_empty() {
+            format!("Command exited with status {}", output.status)
+        } else {
+            err_msg
+        })
+    }
+}
+
+fn extract_version(output: &str) -> String {
+    let mut version = String::new();
+    for token in output.split(|c: char| c.is_whitespace() || c == '/' || c == 'v') {
+        let parts: Vec<&str> = token.split('.').collect();
+        if parts.len() >= 3 && parts.iter().all(|p| p.chars().all(|ch| ch.is_ascii_digit())) {
+            version = token.to_string();
+            break;
+        }
+    }
+    if version.is_empty() {
+        let clean = output.trim().replace("v", "");
+        if clean.len() > 15 {
+            clean[..15].to_string()
+        } else {
+            clean
+        }
+    } else {
+        version
+    }
+}
+
+#[derive(serde::Serialize)]
+pub struct AgentCliStatus {
+    pub current: String,
+    pub latest: String,
+    pub status: String,
+}
+
+#[derive(serde::Serialize)]
+#[allow(non_snake_case)]
+pub struct AgentStatusesMap {
+    pub claudeCode: AgentCliStatus,
+    pub codex: AgentCliStatus,
+    pub geminiCli: AgentCliStatus,
+    pub openCode: AgentCliStatus,
+}
+
+#[tauri::command]
+pub async fn get_agent_cli_statuses() -> Result<AgentStatusesMap, String> {
+    match tauri::async_runtime::spawn_blocking(|| {
+        let detect_current = |bin_name: &str| -> String {
+            match run_command_in_shell(bin_name, &["--version"]) {
+                Ok(out) => {
+                    let v = extract_version(&out);
+                    if v.is_empty() { "已安装".to_string() } else { v }
+                }
+                Err(_) => {
+                    match run_command_in_shell(bin_name, &["-v"]) {
+                        Ok(out) => {
+                            let v = extract_version(&out);
+                            if v.is_empty() { "已安装".to_string() } else { v }
+                        }
+                        Err(_) => "未安装".to_string(),
+                    }
+                }
+            }
+        };
+
+        let detect_latest = |npm_pkg: &str, fallback: &str| -> String {
+            match run_command_in_shell("npm", &["view", npm_pkg, "version"]) {
+                Ok(out) => {
+                    let v = out.trim().to_string();
+                    if v.is_empty() { fallback.to_string() } else { v }
+                }
+                Err(_) => fallback.to_string(),
+            }
+        };
+
+        let claude_curr = detect_current("claude");
+        let claude_latest = detect_latest("@anthropic-ai/claude-code", "2.1.187");
+        let claude_status = if claude_curr == "未安装" {
+            "not-installed".to_string()
+        } else if claude_curr < claude_latest {
+            "upgradeable".to_string()
+        } else {
+            "latest".to_string()
+        };
+
+        let codex_curr = detect_current("codex");
+        let codex_latest = detect_latest("codex", "0.142.0");
+        let codex_status = if codex_curr == "未安装" {
+            "not-installed".to_string()
+        } else if codex_curr < codex_latest {
+            "upgradeable".to_string()
+        } else {
+            "latest".to_string()
+        };
+
+        let gemini_curr = detect_current("gemini-cli");
+        let gemini_latest = detect_latest("@google/gemini-cli", "0.47.0");
+        let gemini_status = if gemini_curr == "未安装" {
+            "not-installed".to_string()
+        } else if gemini_curr < gemini_latest {
+            "upgradeable".to_string()
+        } else {
+            "latest".to_string()
+        };
+
+        let opencode_curr = detect_current("opencode");
+        let opencode_latest = detect_latest("opencode", "1.17.9");
+        let opencode_status = if opencode_curr == "未安装" {
+            "not-installed".to_string()
+        } else if opencode_curr < opencode_latest {
+            "upgradeable".to_string()
+        } else {
+            "latest".to_string()
+        };
+
+        Ok(AgentStatusesMap {
+            claudeCode: AgentCliStatus {
+                current: claude_curr,
+                latest: claude_latest,
+                status: claude_status,
+            },
+            codex: AgentCliStatus {
+                current: codex_curr,
+                latest: codex_latest,
+                status: codex_status,
+            },
+            geminiCli: AgentCliStatus {
+                current: gemini_curr,
+                latest: gemini_latest,
+                status: gemini_status,
+            },
+            openCode: AgentCliStatus {
+                current: opencode_curr,
+                latest: opencode_latest,
+                status: opencode_status,
+            },
+        })
+    }).await {
+        Ok(res) => res,
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[derive(serde::Serialize, Clone)]
+pub struct CliInstallLog {
+    pub stream: String,
+    pub text: String,
+}
+
+#[tauri::command]
+pub async fn run_agent_cli_install(
+    window: tauri::Window,
+    agent_id: String,
+) -> Result<(), String> {
+    let npm_pkg = match agent_id.as_str() {
+        "claudeCode" => "@anthropic-ai/claude-code",
+        "codex" => "codex",
+        "geminiCli" => "@google/gemini-cli",
+        "openCode" => "opencode",
+        _ => return Err(format!("不支持的 Agent ID: {agent_id}")),
+    };
+
+    match tauri::async_runtime::spawn_blocking(move || {
+        let emit_log = |stream: &str, text: &str| {
+            let _ = window.emit(
+                "cli-install-log",
+                CliInstallLog {
+                    stream: stream.to_string(),
+                    text: text.to_string(),
+                },
+            );
+        };
+
+        emit_log("status", &format!("开始执行 npm install -g {}...", npm_pkg));
+        
+        let mut cmd = if cfg!(target_os = "windows") {
+            let mut c = Command::new("cmd");
+            c.args(&["/C", &format!("npm install -g {npm_pkg} --force")]);
+            c
+        } else {
+            let mut c = Command::new("npm");
+            c.args(&["install", "-g", npm_pkg, "--force"]);
+            c
+        };
+
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+
+        let mut child = match cmd.spawn() {
+            Ok(c) => c,
+            Err(e) => {
+                emit_log("stderr", &format!("无法启动 npm 命令。请确认您的系统已安装 Node.js 与 npm。\n错误信息: {e}"));
+                emit_log("status", "failed");
+                return;
+            }
+        };
+
+        let stdout = child.stdout.take().expect("Failed to open stdout");
+        let stderr = child.stderr.take().expect("Failed to open stderr");
+        
+        let window_clone = window.clone();
+        let stderr_thread = std::thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            for line in reader.lines() {
+                if let Ok(l) = line {
+                    let _ = window_clone.emit(
+                        "cli-install-log",
+                        CliInstallLog {
+                            stream: "stderr".to_string(),
+                            text: l,
+                        },
+                    );
+                }
+            }
+        });
+
+        let reader = BufReader::new(stdout);
+        for line in reader.lines() {
+            if let Ok(l) = line {
+                emit_log("stdout", &l);
+            }
+        }
+
+        let _ = stderr_thread.join();
+        
+        match child.wait() {
+            Ok(status) if status.success() => {
+                emit_log("status", "success");
+            }
+            Ok(status) => {
+                emit_log("stderr", &format!("安装失败，npm 命令返回状态: {status}"));
+                emit_log("status", "failed");
+            }
+            Err(e) => {
+                emit_log("stderr", &format!("等待安装进程完成时发生错误: {e}"));
+                emit_log("status", "failed");
+            }
+        }
+    }).await {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[derive(serde::Serialize)]
+pub struct DiagnosisReport {
+    pub healthy: bool,
+    pub score: i32,
+    pub issues: Vec<String>,
+}
+
+#[tauri::command]
+pub fn diagnose_agent_collisions() -> Result<DiagnosisReport, String> {
+    let mut issues = Vec::new();
+    let mut score = 100;
+
+    if let Some(path_env) = std::env::var_os("PATH") {
+        let paths: Vec<std::path::PathBuf> = std::env::split_paths(&path_env).collect();
+        let target_clis = ["claude", "codex", "gemini-cli", "opencode"];
+        for cli in target_clis {
+            let mut found_paths = Vec::new();
+            for p in &paths {
+                if cfg!(target_os = "windows") {
+                    for ext in [".cmd", ".bat", ".exe", ""] {
+                        let full = p.join(format!("{cli}{ext}"));
+                        if full.exists() && full.is_file() {
+                            found_paths.push(full);
+                            break;
+                        }
+                    }
+                } else {
+                    let full = p.join(cli);
+                    if full.exists() && full.is_file() {
+                        found_paths.push(full);
+                    }
+                }
+            }
+            found_paths.sort();
+            found_paths.dedup();
+
+            if found_paths.len() > 1 {
+                issues.push(format!(
+                    "检测到命令行工具 `{}` 存在多个全局安装路径，可能会引起冲突：\n{}",
+                    cli,
+                    found_paths.iter().map(|p| format!("  - {}", p.to_string_lossy())).collect::<Vec<_>>().join("\n")
+                ));
+                score -= 20;
+            }
+        }
+    }
+
+    if score < 0 {
+        score = 0;
+    }
+
+    Ok(DiagnosisReport {
+        healthy: issues.is_empty(),
+        score,
+        issues,
+    })
+}
+
 

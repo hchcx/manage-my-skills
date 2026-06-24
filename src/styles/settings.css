@@ -12,8 +12,8 @@
 
 .settings-sheet {
   display: grid;
-  width: min(760px, calc(100vw - 56px));
-  max-height: min(760px, calc(100vh - 56px));
+  width: min(960px, calc(100vw - 56px));
+  max-height: min(860px, calc(100vh - 56px));
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0;
   overflow: hidden;
@@ -24,31 +24,31 @@
 
 .settings-sheet .pane-title {
   margin: 0;
-  padding: 22px 24px 18px;
+  padding: 26px 32px 20px;
   border-bottom: 1px solid rgba(24, 26, 29, 0.10);
 }
 
 .settings-sheet .pane-title h1 {
-  font-size: 25px;
+  font-size: 26px;
 }
 
 .settings-sheet .pane-title p {
-  max-width: 520px;
+  max-width: 600px;
 }
 
 .settings-content {
   display: grid;
-  gap: 12px;
+  gap: 20px;
   min-height: 0;
   overflow: auto;
-  padding: 16px 24px 18px;
+  padding: 24px 32px 28px;
 }
 
 .settings-section {
   display: grid;
-  gap: 12px;
+  gap: 18px;
   min-width: 0;
-  padding: 14px;
+  padding: 22px;
   border: 1px solid rgba(24, 26, 29, 0.10);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.74);
@@ -120,7 +120,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px 12px 18px;
+  padding: 16px 32px;
   border-bottom: 1px solid rgba(24, 26, 29, 0.10);
   background: rgba(250, 251, 252, 0.6);
 }
@@ -153,19 +153,19 @@
 
 .settings-agents-pane {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
 .settings-agent-list {
   display: grid;
-  gap: 6px;
+  gap: 10px;
 }
 
 .settings-agent-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: 12px;
+  padding: 12px 18px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid rgba(24, 26, 29, 0.08);
@@ -181,8 +181,8 @@
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 10px;
-  padding: 7px 12px;
+  gap: 12px;
+  padding: 10px 18px;
 }
 
 .settings-agent-row.rich .agent-main {
@@ -231,7 +231,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  padding: 14px 24px;
+  padding: 18px 32px;
   border-top: 1px solid rgba(24, 26, 29, 0.10);
   background: rgba(250, 251, 252, 0.78);
 }
