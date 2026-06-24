@@ -390,7 +390,14 @@ fn looks_like_github_slug(value: &str) -> bool {
 fn resolve_skill_path(repo_path: &Path, slug: &str, skill_path: Option<&str>) -> Option<PathBuf> {
     let custom = skill_path
         .filter(|path| !path.trim().is_empty())
-        .map(|path| repo_path.join(path.trim_start_matches('/')));
+        .map(|path| {
+            let p = repo_path.join(path.trim_start_matches('/'));
+            if p.file_name().and_then(|n| n.to_str()) == Some("SKILL.md") {
+                p.parent().map(|parent| parent.to_path_buf()).unwrap_or(p)
+            } else {
+                p
+            }
+        });
 
     std::iter::once(custom)
         .flatten()
