@@ -151,6 +151,7 @@ export function SettingsSheet({
     e.dataTransfer.effectAllowed = "move";
     try {
       e.dataTransfer.setData("text/plain", String(index));
+      e.dataTransfer.setData("text", String(index));
     } catch (_) {}
     
     // Crucial: delay setting React active index state by 0ms so that the WebView's drag start handshake completes before React triggers re-render
@@ -324,6 +325,7 @@ export function SettingsSheet({
                         className="settings-agent-row rich" 
                         key={agent.id}
                         onDragOver={(e) => handleDragOver(e, index)}
+                        onDragEnter={(e) => e.preventDefault()}
                         style={{ 
                           position: "relative",
                           gridTemplateColumns: "20px 24px 36px minmax(0, 1fr) auto auto 32px",
