@@ -29,6 +29,7 @@ pub fn default_settings(app: &AppHandle) -> Result<Settings, String> {
         language: "zh-CN".to_string(),
         enabled_agent_ids: None,
         custom_agents: None,
+        agent_order: None,
     })
 }
 
