@@ -339,6 +339,66 @@ export default function App() {
     }
   }
 
+  async function toggleAgentSkill(
+    skill: SkillRecord,
+    agentId: string,
+    active: boolean,
+    sourcePath: string
+  ) {
+    // 1. 乐观更新本地 inventory 数据，使图标立刻发生亮起/置灰以实现零延迟极速显示
+    setInventory((current) => {
+      if (!current) return null;
+      return {
+        ...current,
+        skills: current.skills.map((s) => {
+          if (s.id !== skill.id) return s;
+          let nextInstallations = [...s.installations];
+          if (active) {
+            if (!nextInstallations.some((inst) => inst.agentId === agentId)) {
+              const agentLabel = agents.find((a) => a.id === agentId)?.label ?? agentId;
+              nextInstallations.push({
+                id: `${skill.id}-${agentId}`,
+                agentId,
+                agentLabel,
+                scope: skillWorkspace,
+                rootPath: "",
+                entryPath: "",
+                isSymlink: true,
+                brokenSymlink: false,
+                status: "active",
+                issues: []
+              });
+            }
+          } else {
+            nextInstallations = nextInstallations.filter((inst) => inst.agentId !== agentId);
+          }
+          return {
+            ...s,
+            installations: nextInstallations
+          };
+        })
+      };
+    });
+
+    // 2. 调用后台物理同步接口进行软链创建或移除
+    try {
+      await invoke("toggle_agent_skill", {
+        skillId: skill.slug,
+        agentId,
+        scope: skillWorkspace,
+        projectPath: selectedProjectFolder,
+        active,
+        sourcePath
+      });
+      // 3. 静默刷新同步最新的真实物理状态
+      await refreshInventory(true);
+    } catch (err) {
+      // 4. 出错时触发静默扫描，自动回滚前端状态
+      await refreshInventory(true);
+      throw err;
+    }
+  }
+
   async function saveSettings() {
     setBusy("保存设置");
     setError(null);
@@ -718,6 +778,7 @@ export default function App() {
             onSelectSkill={setSelectedSkillId}
             onToggleSkill={toggleSkill}
             onUpdateSkill={updateSkillsShSkill}
+            onToggleAgentSkill={toggleAgentSkill}
             onAdoptSelected={() => openSelectedSkillsSync("managed")}
             onQuickSyncSelected={() => openSelectedSkillsSync("quick")}
             onClearSelection={clearSelectedSkills}

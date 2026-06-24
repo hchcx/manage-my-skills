@@ -38,6 +38,7 @@ export function SkillsView({
   onSelectSkill,
   onToggleSkill,
   onUpdateSkill,
+  onToggleAgentSkill,
   onAdoptSelected,
   onQuickSyncSelected,
   onClearSelection,
@@ -76,6 +77,7 @@ export function SkillsView({
   onSelectSkill: (id: string | null) => void;
   onToggleSkill: (id: string) => void;
   onUpdateSkill: (skill: SkillRecord) => void;
+  onToggleAgentSkill: (skill: SkillRecord, agentId: string, active: boolean, sourcePath: string) => Promise<void>;
   onAdoptSelected: () => void;
   onQuickSyncSelected: () => void;
   onClearSelection: () => void;
@@ -167,13 +169,13 @@ export function SkillsView({
     event.stopPropagation();
     if (toggleBusy) return;
 
-    let sourcePath: string | null = null;
+    let sourcePath = "";
     if (active) {
       if (skill.canonicalPath) {
         sourcePath = skill.canonicalPath;
       } else {
         const physical = skill.installations.find(i => !i.isSymlink && i.entryPath);
-        sourcePath = physical?.entryPath || skill.installations[0]?.entryPath || null;
+        sourcePath = physical?.entryPath || skill.installations[0]?.entryPath || "";
       }
 
       if (!sourcePath) {
@@ -184,15 +186,7 @@ export function SkillsView({
 
     setToggleBusy(`${skill.slug}-${agentId}`);
     try {
-      await invoke("toggle_agent_skill", {
-        skillId: skill.slug,
-        agentId,
-        scope: workspace,
-        projectPath: selectedProjectFolder,
-        active,
-        sourcePath
-      });
-      onRefresh(true);
+      await onToggleAgentSkill(skill, agentId, active, sourcePath);
     } catch (err) {
       alert(`快捷同步操作失败:\n${err}`);
     } finally {
