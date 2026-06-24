@@ -354,7 +354,12 @@ fn short_fingerprint(value: &str) -> String {
 fn is_hidden_skill_entry(path: &Path) -> bool {
     path.file_name()
         .and_then(|name| name.to_str())
-        .is_some_and(|name| name.starts_with('.') || name.contains(".bak_"))
+        .is_some_and(|name| {
+            name.starts_with('.') 
+            || name.contains(".bak_") 
+            || name == "codex-primary-runtime" 
+            || name.ends_with("-runtime")
+        })
 }
 
 pub fn inspect_installation(
