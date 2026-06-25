@@ -13,7 +13,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'windows-latest' # 构建 Windows 版本
+          - platform: 'macos-latest'
+            args: '--target universal-apple-darwin'
+            targets: 'x86_64-apple-darwin,aarch64-apple-darwin'
+          - platform: 'windows-latest'
+            args: ''
+            targets: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -26,6 +31,8 @@ jobs:
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.targets }}
 
       - name: install frontend dependencies
         run: npm install
@@ -43,3 +50,4 @@ jobs:
           releaseDraft: true
           prerelease: false
           includeUpdater: true
+          args: ${{ matrix.args }}
