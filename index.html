@@ -14,7 +14,7 @@
       body {
         margin: 0;
         overflow: hidden;
-        background: transparent;
+        background: #f3f4f6;
         font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
       }
 
@@ -22,9 +22,7 @@
         display: flex;
         height: 100%;
         flex-direction: column;
-        background:
-          linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(246, 247, 248, 0.26)),
-          rgba(235, 237, 238, 0.28);
+        background: #f3f4f6;
         color: #17191c;
       }
 
@@ -73,14 +71,165 @@
         color: #f9fafb;
       }
 
-      .preload-content {
-        display: grid;
+      /* 骨架屏核心布局 */
+      .preload-body {
+        display: flex;
         flex: 1;
-        place-items: center;
-        padding-bottom: 8vh;
-        color: rgba(23, 25, 28, 0.50);
-        font-size: 14px;
-        font-weight: 700;
+        gap: 24px;
+        padding: 16px 24px;
+        overflow: hidden;
+      }
+
+      /* 左侧 Agent 侧边栏骨架 */
+      .skeleton-sidebar {
+        width: 220px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        border-right: 1px solid rgba(24, 26, 29, 0.06);
+        padding-right: 20px;
+        flex-shrink: 0;
+      }
+
+      .skeleton-sidebar-item {
+        height: 48px;
+        border-radius: 8px;
+        background: linear-gradient(90deg, rgba(24, 26, 29, 0.04) 25%, rgba(24, 26, 29, 0.09) 37%, rgba(24, 26, 29, 0.04) 63%);
+        background-size: 400% 100%;
+        animation: skeleton-shimmer 1.4s ease infinite;
+      }
+
+      /* 右侧技能区域骨架 */
+      .skeleton-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .skeleton-title {
+        width: 140px;
+        height: 24px;
+        border-radius: 6px;
+        background: linear-gradient(90deg, rgba(24, 26, 29, 0.04) 25%, rgba(24, 26, 29, 0.09) 37%, rgba(24, 26, 29, 0.04) 63%);
+        background-size: 400% 100%;
+        animation: skeleton-shimmer 1.4s ease infinite;
+      }
+
+      .skeleton-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+      }
+
+      .skeleton-card {
+        border: 1px solid rgba(24, 26, 29, 0.05);
+        border-radius: 12px;
+        padding: 18px;
+        background: rgba(255, 255, 255, 0.45);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.01);
+      }
+
+      .skeleton-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .skeleton-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: linear-gradient(90deg, rgba(24, 26, 29, 0.04) 25%, rgba(24, 26, 29, 0.09) 37%, rgba(24, 26, 29, 0.04) 63%);
+        background-size: 400% 100%;
+        animation: skeleton-shimmer 1.4s ease infinite;
+      }
+
+      .skeleton-header-text {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .skeleton-line {
+        height: 12px;
+        border-radius: 4px;
+        background: linear-gradient(90deg, rgba(24, 26, 29, 0.04) 25%, rgba(24, 26, 29, 0.09) 37%, rgba(24, 26, 29, 0.04) 63%);
+        background-size: 400% 100%;
+        animation: skeleton-shimmer 1.4s ease infinite;
+      }
+
+      .skeleton-line.short {
+        width: 60%;
+      }
+
+      .skeleton-line.medium {
+        width: 80%;
+      }
+
+      .skeleton-card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin: 4px 0;
+      }
+
+      .skeleton-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 4px;
+      }
+
+      .skeleton-btn {
+        width: 76px;
+        height: 28px;
+        border-radius: 6px;
+        background: linear-gradient(90deg, rgba(24, 26, 29, 0.04) 25%, rgba(24, 26, 29, 0.09) 37%, rgba(24, 26, 29, 0.04) 63%);
+        background-size: 400% 100%;
+        animation: skeleton-shimmer 1.4s ease infinite;
+      }
+
+      /* 底部精致小菊花加载状态条 */
+      .preload-footer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 14px;
+        font-size: 12.5px;
+        color: rgba(23, 25, 28, 0.44);
+        font-weight: 600;
+        border-top: 1px solid rgba(24, 26, 29, 0.04);
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      .preload-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(24, 26, 29, 0.1);
+        border-left-color: rgba(24, 26, 29, 0.6);
+        border-radius: 50%;
+        animation: preload-spin 0.8s linear infinite;
+      }
+
+      @keyframes skeleton-shimmer {
+        0% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+
+      @keyframes preload-spin {
+        to {
+          transform: rotate(360deg);
+        }
       }
     </style>
   </head>
@@ -90,12 +239,84 @@
         <header class="preload-nav">
           <div class="preload-logo">Manage My skills</div>
           <nav class="preload-tabs" aria-label="主导航">
-            <span>发现 Agent</span>
-            <span>发现 Skills</span>
-            <span>同步 Skills</span>
+            <span>Skills 管理</span>
+            <span>发现技能</span>
           </nav>
         </header>
-        <section class="preload-content">正在加载 Manage My skills...</section>
+
+        <div class="preload-body">
+          <aside class="skeleton-sidebar">
+            <div class="skeleton-sidebar-item"></div>
+            <div class="skeleton-sidebar-item"></div>
+            <div class="skeleton-sidebar-item"></div>
+            <div class="skeleton-sidebar-item"></div>
+          </aside>
+
+          <main class="skeleton-main">
+            <div class="skeleton-title"></div>
+            <div class="skeleton-grid">
+              <!-- 卡片占位 1 -->
+              <div class="skeleton-card">
+                <div class="skeleton-card-header">
+                  <div class="skeleton-avatar"></div>
+                  <div class="skeleton-header-text">
+                    <div class="skeleton-line medium"></div>
+                    <div class="skeleton-line short"></div>
+                  </div>
+                </div>
+                <div class="skeleton-card-body">
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-line medium"></div>
+                </div>
+                <div class="skeleton-card-footer">
+                  <div class="skeleton-line short" style="width: 70px;"></div>
+                  <div class="skeleton-btn"></div>
+                </div>
+              </div>
+              <!-- 卡片占位 2 -->
+              <div class="skeleton-card">
+                <div class="skeleton-card-header">
+                  <div class="skeleton-avatar"></div>
+                  <div class="skeleton-header-text">
+                    <div class="skeleton-line medium"></div>
+                    <div class="skeleton-line short"></div>
+                  </div>
+                </div>
+                <div class="skeleton-card-body">
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-line medium"></div>
+                </div>
+                <div class="skeleton-card-footer">
+                  <div class="skeleton-line short" style="width: 70px;"></div>
+                  <div class="skeleton-btn"></div>
+                </div>
+              </div>
+              <!-- 卡片占位 3 -->
+              <div class="skeleton-card">
+                <div class="skeleton-card-header">
+                  <div class="skeleton-avatar"></div>
+                  <div class="skeleton-header-text">
+                    <div class="skeleton-line medium"></div>
+                    <div class="skeleton-line short"></div>
+                  </div>
+                </div>
+                <div class="skeleton-card-body">
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-line medium"></div>
+                </div>
+                <div class="skeleton-card-footer">
+                  <div class="skeleton-line short" style="width: 70px;"></div>
+                  <div class="skeleton-btn"></div>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+
+        <footer class="preload-footer">
+          <div class="preload-spinner"></div>
+          <span>正在初始化数据仓库...</span>
+        </footer>
       </main>
     </div>
     <script type="module" src="/src/main.tsx"></script>

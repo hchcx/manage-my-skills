@@ -716,6 +716,58 @@ This is a workspace skill. Add your custom instructions and tools here.
 use crate::models::{RemoteSkillInfo, RemoteInstallArgs};
 
 #[tauri::command]
+pub async fn get_remote_skill_readme(
+    app: AppHandle,
+    repo_url: String,
+    relative_path: String,
+    lang: Option<String>,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let repo_path = checkout_repo(&app, &repo_url)?;
+        let skill_dir = if relative_path.is_empty() {
+            repo_path
+        } else {
+            repo_path.join(&relative_path)
+        };
+
+        let lang_str = lang.unwrap_or_else(|| "zh".to_string());
+        
+        let files_to_try = if lang_str == "zh" {
+            vec![
+                "SKILL-zh.md",
+                "SKILL-zh-CN.md",
+                "README-zh.md",
+                "README-zh-CN.md",
+                "SKILL.md",
+                "README.md",
+            ]
+        } else {
+            vec![
+                "SKILL.md",
+                "README.md",
+                "SKILL-zh.md",
+                "SKILL-zh-CN.md",
+                "README-zh.md",
+                "README-zh-CN.md",
+            ]
+        };
+
+        for filename in files_to_try {
+            let file_path = skill_dir.join(filename);
+            if file_path.exists() {
+                if let Ok(content) = fs::read_to_string(&file_path) {
+                    return Ok(content);
+                }
+            }
+        }
+
+        Err("未找到任何说明文件 (SKILL.md, README.md 或对应的中英文版本)".to_string())
+    })
+    .await
+    .map_err(|e| format!("进程执行错误: {e}"))?
+}
+
+#[tauri::command]
 pub async fn list_remote_skills(
     app: AppHandle,
     repo_url: Option<String>,
@@ -1249,6 +1301,16 @@ pub fn diagnose_agent_collisions() -> Result<DiagnosisReport, String> {
         score,
         issues,
     })
+}
+
+#[tauri::command]
+pub fn app_ready(app: AppHandle, window: tauri::WebviewWindow) -> Result<(), String> {
+    let settings = settings::load_settings(&app).unwrap_or_default();
+    if !settings.silent_start {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+    Ok(())
 }
 
 

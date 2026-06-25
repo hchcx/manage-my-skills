@@ -62,6 +62,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsDefaultTab, setSettingsDefaultTab] = useState<"data" | "agents" | "about">("data");
   const [hasScanned, setHasScanned] = useState(false);
+  const [booted, setBooted] = useState(false);
   const [previouslyScanned, setPreviouslyScanned] = useState(false);
   const [remoteSkills, setRemoteSkills] = useState<any[]>([]);
   const [remoteSkillsLoading, setRemoteSkillsLoading] = useState(false);
@@ -167,6 +168,9 @@ export default function App() {
   );
 
   async function boot() {
+    if (isTauriRuntime()) {
+      void invoke("app_ready").catch(console.error);
+    }
     setBusy("读取上次扫描");
     setError(null);
     if (!isTauriRuntime()) {
@@ -179,6 +183,7 @@ export default function App() {
       setPreviouslyScanned(hadDemoData);
       setSelectedSkillId(null);
       setBusy("");
+      setBooted(true);
       return;
     }
     try {
@@ -207,6 +212,8 @@ export default function App() {
     } catch (reason) {
       setError(String(reason));
       setBusy("");
+    } finally {
+      setBooted(true);
     }
   }
 
@@ -860,7 +867,72 @@ export default function App() {
       {toast && <div className="toast" role="status">{toast}</div>}
 
       <section className="content-frame">
-        {view === "skills" && !hasScanned ? (
+        {!booted ? (
+          <div className="preload-body">
+            <aside className="skeleton-sidebar">
+              <div className="skeleton-sidebar-item"></div>
+              <div className="skeleton-sidebar-item"></div>
+              <div className="skeleton-sidebar-item"></div>
+              <div className="skeleton-sidebar-item"></div>
+            </aside>
+            <main className="skeleton-main">
+              <div className="skeleton-title"></div>
+              <div className="skeleton-grid">
+                <div className="skeleton-card">
+                  <div className="skeleton-card-header">
+                    <div className="skeleton-avatar"></div>
+                    <div className="skeleton-header-text">
+                      <div className="skeleton-line medium"></div>
+                      <div className="skeleton-line short"></div>
+                    </div>
+                  </div>
+                  <div className="skeleton-card-body">
+                    <div className="skeleton-line"></div>
+                    <div className="skeleton-line medium"></div>
+                  </div>
+                  <div className="skeleton-card-footer">
+                    <div className="skeleton-line short" style={{ width: "70px" }}></div>
+                    <div className="skeleton-btn"></div>
+                  </div>
+                </div>
+                <div className="skeleton-card">
+                  <div className="skeleton-card-header">
+                    <div className="skeleton-avatar"></div>
+                    <div className="skeleton-header-text">
+                      <div className="skeleton-line medium"></div>
+                      <div className="skeleton-line short"></div>
+                    </div>
+                  </div>
+                  <div className="skeleton-card-body">
+                    <div className="skeleton-line"></div>
+                    <div className="skeleton-line medium"></div>
+                  </div>
+                  <div className="skeleton-card-footer">
+                    <div className="skeleton-line short" style={{ width: "70px" }}></div>
+                    <div className="skeleton-btn"></div>
+                  </div>
+                </div>
+                <div className="skeleton-card">
+                  <div className="skeleton-card-header">
+                    <div className="skeleton-avatar"></div>
+                    <div className="skeleton-header-text">
+                      <div className="skeleton-line medium"></div>
+                      <div className="skeleton-line short"></div>
+                    </div>
+                  </div>
+                  <div className="skeleton-card-body">
+                    <div className="skeleton-line"></div>
+                    <div className="skeleton-line medium"></div>
+                  </div>
+                  <div className="skeleton-card-footer">
+                    <div className="skeleton-line short" style={{ width: "70px" }}></div>
+                    <div className="skeleton-btn"></div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        ) : view === "skills" && !hasScanned ? (
           <div className="agents-page empty-state-page">
             <AgentDiscoveryEmptyState
               busy={busy}
@@ -928,10 +1000,11 @@ export default function App() {
           />
         ) : null}
 
-        {view === "sync" && (
+        {booted && view === "sync" && (
           <DiscoveryView
             settings={settings}
             agents={agents}
+            allSkills={allSkills}
             onUpdateSettings={updateSkillRepositories}
             onShowToast={setToast}
             onRefreshInventory={refreshInventory}

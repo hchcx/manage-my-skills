@@ -12,7 +12,7 @@ All filesystem mutations go through a strict **Preview → Confirm → Async App
 ## 🖼️ Screenshots
 
 <details open>
-<summary>💡 Click to expand and view all 9 screenshots</summary>
+<summary>💡 Click to expand and view all 11 screenshots</summary>
 
 ### 1. Skills Management & Workspaces
 
@@ -22,7 +22,11 @@ All filesystem mutations go through a strict **Preview → Confirm → Async App
 
 ### 2. Discover Skill Store & Distribution Flow
 
-|                                             Online Skill Store                                             |                                             Distribution - Agent Selection                                             |
+|                                             Online Skill Store - Leaderboard View (Rank)                                             |                                             Skill Details & Chinese Translation (Detail)                                             |
+| :----------------------------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------------------------: |
+| ![Skill Store Leaderboard](https://anta.obs.cn-south-1.myhuaweicloud.com/icon/rank.png) | ![Skill Translation Details](https://anta.obs.cn-south-1.myhuaweicloud.com/icon/skills-detail.png) |
+
+|                                             Online Skill Store - Grid View (Store)                                             |                                             Distribution - Agent Selection                                             |
 | :--------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------: |
 | ![Online Skill Store](https://anta.obs.cn-south-1.myhuaweicloud.com/icon/Snipaste_2026-06-24_20-51-03.png) | ![Distribution - Agent Selection](https://anta.obs.cn-south-1.myhuaweicloud.com/icon/Snipaste_2026-06-24_20-51-14.png) |
 
@@ -48,7 +52,7 @@ All filesystem mutations go through a strict **Preview → Confirm → Async App
 
 - **Cross-Platform Native Styling & Window Behaviors**:
   - **macOS**: Beautiful frosted glass translucent window styling.
-  - **Windows**: Deep integration with Windows 11/10 supporting native Mica and Acrylic effects with auto-adaptive window properties.
+  - **Windows**: Deep integration with Windows 11/10. Uses highly compatible solid-color elegant light grey backgrounds to completely avoid "completely transparent/hollow window" rendering bugs on low-end or customized OS graphics configurations.
   - **System Tray & Window Controls**: Provides a polished system tray menu to toggle visibility via single left-click. Supports setting autostart, silent launching (tray-only backend start), and minimizing to tray instead of quitting on close.
 - **Automatic Agent Discovery**: Automatically scans and lists all installed AI coding assistants and their global/project-level Skills directories.
 - **Smart & Safe Sync Engine**:
@@ -59,6 +63,9 @@ All filesystem mutations go through a strict **Preview → Confirm → Async App
   - **Worker Queue Limiter**: Limits concurrent network requests to 3 to prevent CPU and connection spikes, keeping UI interactions (like switching tabs) smooth.
   - **Repo SHA-256 Hashing**: Repositories are persistently mapped and cached by Git URLs inside `app_data_dir/cache/repos/`.
   - **10-Second Deduplication Lock + Incremental Fetching**: Repetitive check requests within 10 seconds reuse cache. Beyond 10 seconds, it uses shallow `git fetch --depth 1` + hard reset, slashing check times from minutes down to **seconds**.
+- **Skill Leaderboards & Document Translation**:
+  - **Multi-Dimensional Rankings**: Supports toggling between "Leaderboard" and "Grid Card" views. Under the leaderboard view, online skills are ranked by All Time, Trending (24h), and Hot categories, showing 8-week activity trends sparklines and download statistics.
+  - **Inline Translation**: Built-in document translator in the detail panel to translate English skill READMEs to Chinese with one click, supporting seamless reversion to English.
 - **Precise Update Statuses**:
   - Inline tracking of remote repository versions (`checking` / `available` / `current` / `check-failed`).
   - **Detailed Error Cards**: If a Git check fails, detailed Rust/Git error logs are presented directly inline on a soft red warning card.
@@ -138,8 +145,8 @@ Build files will be generated under `src-tauri/target/release/bundle/`.
 We provide an automated, error-tolerant publishing script that synchronizes the version string across `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`, then triggers compilation:
 
 ```bash
-# Example: Bump to 0.1.2 and build
-npm run release -- 0.1.2
+# Example: Bump to 0.2.3 and build
+npm run release -- 0.2.3
 ```
 
 **💡 Encryption & Signing Keys Setup:**
@@ -168,6 +175,55 @@ The project features integration with GitHub Actions via `.github/workflows/ci.y
 - **Desktop Runtime**: Tauri v2 (Rust)
 - **Core Systems**: Rust (`walkdir`, `serde` serialization, `tokio` multi-threaded async pooling)
 - **Design Language**: Quiet, high-density, native tool experience
+
+---
+
+## 📅 Changelog
+
+### v0.2.3 (2026-06-25)
+
+- **⚡ Launch Experience & Jitter Elimination**:
+  - Implemented an `app_ready` IPC feedback channel. The app window is shown only when the static Webview layout is fully painted, eliminating the launch flash-of-white.
+  - Added a high-fidelity shimmer effect Skeleton Loading screen covering the async state window, resolving layout leaps between caching phases.
+- **⚙️ UI Cleanups**:
+  - Removed translation toggles, unifying the primary UI to standard simplified Chinese.
+  - Trimmed the "All Repositories" selection dropdown from the Discovery tab to simplify user flows.
+- **🔧 Development & Stability**:
+  - Fine-tuned Tauri configs to native hot module replacement (HMR) during `tauri dev`.
+  - Strengthened adoption conflict protections for existing folders.
+
+### v0.2.2 (2026-06-24)
+
+- **🌐 Community & Docs**:
+  - Integrated official QQ Community Chat Group quick-links and Sponsorship banners.
+  - Added the LINUX DO community appreciation section.
+  - Replaced all local screenshot relative assets in READMEs with high-speed OBS cloud links, setting image previews to default-expanded.
+- **🐛 Bug Fixes**:
+  - Fixed edge-case Windows path string parsing issues.
+
+### v0.2.1 (2026-06-24)
+
+- **🖥️ CLI Console Window Suppressed**:
+  - Completely resolved the Windows issue where launching external processes (e.g., Node/Git) or clicking Preference buttons would briefly flash terminal console command boxes.
+- **🎨 Layouts & Diagnostic Tools**:
+  - Redesigned setting panels layouts and responsive margins.
+  - Added collision diagnostics for duplicated custom Agent scopes; allowed clearing designated trash bins.
+
+### v0.1.1 (2026-06-23)
+
+- **🔔 System Tray & Autostart**:
+  - Introduced desktop autostart, silent launching (starting as tray minimized icon), and minimize-to-tray-on-close controls.
+  - Integrated Tauri v2 official auto-updater mechanisms.
+- **⚙️ CI/CD & Bumping Scripts**:
+  - Suppressed debug console windows in release packages.
+  - Authored release bumping helper scripts and GitHub Actions pipeline workflows to compile Windows (NSIS) and macOS installers.
+
+### v0.1.0 (2026-06-23)
+
+- **🎉 Initial Release**:
+  - Core features ready: agent scanners, multi-scope skill management, symlink sync hooks, and timestamped directory backups (`.bak`).
+  - **🔬 WebView Drag & Drop Fix**: Solved the notorious drag-and-drop interruption bugs inside Windows WebView2 by introducing local React list states and pointer-events-none handle bypasses.
+  - **💬 Custom Bubble Confirms**: Bypassed WebView blockades on native confirm popups by implementing sleek inline bubble confirmations.
 
 ---
 

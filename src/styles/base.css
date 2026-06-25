@@ -11,7 +11,7 @@
   --app-shadow-float: 0 26px 80px rgba(22, 24, 26, 0.22);
   --app-accent: #2f3338;
   color: var(--app-text);
-  background: transparent;
+  background: #f3f4f6;
   font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -31,7 +31,7 @@ body,
 body {
   margin: 0;
   min-width: 1120px;
-  background: transparent;
+  background: #f3f4f6;
 }
 
 button,
@@ -68,11 +68,7 @@ p {
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(246, 247, 248, 0.26)),
-    rgba(235, 237, 238, 0.28);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: #f3f4f6;
   color: var(--app-text);
 }
 

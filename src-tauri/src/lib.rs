@@ -18,15 +18,9 @@ pub fn run() {
             use tauri::tray::TrayIconBuilder;
             use tauri::Manager;
 
-            // 1. 获取主窗口
             let window = app.get_webview_window("main").unwrap();
 
-            // 2. 读取配置，处理静默启动
-            let settings = settings::load_settings(app.handle()).unwrap_or_default();
-            if !settings.silent_start {
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+            // 2. 读取配置，处理静默启动由前端在 React 挂载后通过 app_ready 命令触发，避免在 Vite/静态资源加载完成前显示空白窗口
 
             // 3. 拦截窗口关闭事件，处理“关闭时最小化到托盘”
             let window_clone = window.clone();
@@ -87,6 +81,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::app_ready,
             commands::get_settings,
             commands::save_settings,
             commands::read_inventory_cache,
@@ -108,6 +103,7 @@ pub fn run() {
             commands::toggle_agent_skill,
             commands::fix_skill_folder_name,
             commands::create_skill_md,
+            commands::get_remote_skill_readme,
             commands::list_remote_skills,
             commands::install_remote_skill,
             commands::get_agent_cli_statuses,
