@@ -37,7 +37,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: Manage-Skills-v__VERSION__ # 自动替换为 package.json 里的版本号
+          tagName: v__VERSION__ # 自动替换为 package.json 里的版本号
           releaseName: 'Manage Skills v__VERSION__'
           releaseBody: 'See the assets to download this version.'
           releaseDraft: true

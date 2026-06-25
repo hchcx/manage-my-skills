@@ -1144,7 +1144,7 @@ export function SettingsSheet({
                   </button>
                   <button
                     className="secondary-button"
-                    onClick={() => showPrompt("暂无本地更新日志，请访问 GitHub Releases 获取详情。")}
+                    onClick={() => void openUrl("https://github.com/hchcx/manage-my-skills/releases")}
                     style={{ height: "32px", padding: "0 10px", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "6px" }}
                     type="button"
                   >
