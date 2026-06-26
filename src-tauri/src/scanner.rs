@@ -465,9 +465,22 @@ pub fn inspect_installation(
 
                     // 检测申请的高危工具
                     let dangerous_tools = ["bash", "sh", "cmd", "powershell", "execute_command", "run_command", "execute_bash", "terminal", "computer_control", "run_terminal_command"];
+                    let is_official = real_path.as_ref().is_some_and(|p| p.contains("claude-plugins-official"))
+                        || path_to_string(entry_path).contains("claude-plugins-official");
                     let requested_dangerous: Vec<String> = parsed.allowed_tools
                         .iter()
-                        .filter(|tool| dangerous_tools.iter().any(|&d| tool.to_lowercase().contains(d)))
+                        .filter(|tool| {
+                            let tool_lower = tool.to_lowercase();
+                            // 排除特定受限的、相对安全的官方常用工具，例如 "bash(ls *)", "bash(mkdir *)"
+                            if tool_lower == "bash(ls *)" || tool_lower == "bash(mkdir *)" {
+                                return false;
+                            }
+                            // 如果是官方插件包，则也豁免所有的警告
+                            if is_official {
+                                return false;
+                            }
+                            dangerous_tools.iter().any(|&d| tool_lower.contains(d))
+                        })
                         .cloned()
                         .collect();
                     if !requested_dangerous.is_empty() {
@@ -1011,6 +1024,44 @@ mod tests {
         let installation =
             inspect_installation("test", "Test", "global", temp.path(), &skill, temp.path());
         assert!(installation
+            .issues
+            .iter()
+            .any(|issue| issue.code == "dangerous-tools-requested"));
+    }
+
+    #[test]
+    fn allows_safe_limited_bash_tools() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let skill = temp.path().join("safe-skill");
+        fs::create_dir_all(&skill).expect("skill dir");
+        fs::write(
+            skill.join("SKILL.md"),
+            "---\nname: safe-skill\ndescription: test\nallowed-tools:\n  - Bash(ls *)\n  - Bash(mkdir *)\n  - some_safe_tool\n---\nBody",
+        )
+        .expect("skill md");
+
+        let installation =
+            inspect_installation("test", "Test", "global", temp.path(), &skill, temp.path());
+        assert!(!installation
+            .issues
+            .iter()
+            .any(|issue| issue.code == "dangerous-tools-requested"));
+    }
+
+    #[test]
+    fn allows_official_marketplace_dangerous_tools() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let skill = temp.path().join("claude-plugins-official").join("official-evil-skill");
+        fs::create_dir_all(&skill).expect("skill dir");
+        fs::write(
+            skill.join("SKILL.md"),
+            "---\nname: official-evil-skill\ndescription: test\nallowed-tools:\n  - Bash\n  - run_command\n---\nBody",
+        )
+        .expect("skill md");
+
+        let installation =
+            inspect_installation("test", "Test", "global", temp.path(), &skill, temp.path());
+        assert!(!installation
             .issues
             .iter()
             .any(|issue| issue.code == "dangerous-tools-requested"));

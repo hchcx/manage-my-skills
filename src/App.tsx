@@ -209,6 +209,9 @@ export default function App() {
         return new Set([...current].filter((id) => valid.has(id)));
       });
       setBusy("");
+      if (hadData) {
+        void refreshInventory(true);
+      }
     } catch (reason) {
       setError(String(reason));
       setBusy("");
