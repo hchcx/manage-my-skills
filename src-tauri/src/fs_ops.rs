@@ -247,6 +247,28 @@ pub fn create_symlink(_source: &Path, _destination: &Path) -> Result<(), String>
     Err("Symlink sync is only implemented for Unix-like and Windows systems".to_string())
 }
 
+pub fn set_dir_readonly(path: &Path, readonly: bool) -> Result<(), String> {
+    if !path.exists() {
+        return Ok(());
+    }
+    for entry in WalkDir::new(path).follow_links(false) {
+        let entry = entry.map_err(|error| format!("无法遍历目录 {}: {}", path_to_string(path), error))?;
+        let p = entry.path();
+        if let Ok(meta) = fs::symlink_metadata(p) {
+            if !meta.file_type().is_symlink() {
+                let mut perms = meta.permissions();
+                perms.set_readonly(readonly);
+                if let Err(e) = fs::set_permissions(p, perms) {
+                    if meta.is_file() {
+                        return Err(format!("无法设置文件权限 {}: {}", path_to_string(p), e));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

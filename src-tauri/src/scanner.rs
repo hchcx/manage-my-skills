@@ -21,7 +21,7 @@ pub fn scan(app: &AppHandle, options: ScanOptions) -> Result<InventorySnapshot, 
     let agents = detect_agents(&settings, options.include_orphaned);
 
     let mut all_issues = Vec::new();
-    let canonical = scan_canonical_library(&library_path, &mut all_issues)?;
+    let canonical = scan_canonical_library(app, &library_path, &mut all_issues)?;
     let mut grouped: BTreeMap<SkillGroupKey, Vec<SkillInstallation>> = BTreeMap::new();
 
     for root in &roots {
@@ -196,6 +196,7 @@ pub fn read_skill_content(skill_ref: crate::models::SkillRef) -> Result<SkillCon
 }
 
 fn scan_canonical_library(
+    app: &AppHandle,
     library_path: &Path,
     issues: &mut Vec<SkillIssue>,
 ) -> Result<BTreeMap<SkillGroupKey, SkillInstallation>, String> {
@@ -228,7 +229,7 @@ fn scan_canonical_library(
             continue;
         }
         let slug = skill_slug_from_path(&path)?;
-        let installation = inspect_installation(
+        let mut installation = inspect_installation(
             "library",
             "Central Library",
             "library",
@@ -236,6 +237,26 @@ fn scan_canonical_library(
             &path,
             library_path,
         );
+
+        // 哈希审计
+        if let Some(local_hash) = &installation.hash {
+            if let Some(remote_hash) = get_remote_skill_hash(app, &slug) {
+                if *local_hash != remote_hash {
+                    let issue = SkillIssue {
+                        code: "tampered-skill".to_string(),
+                        severity: "error".to_string(),
+                        message: format!(
+                            "该技能的本地内容哈希与官方 Git 仓库缓存不符，已被非法修改（可能遭遇写穿透投毒）！请重新导入或更新技能。"
+                        ),
+                        path: Some(path_to_string(&path)),
+                        agent_id: None,
+                    };
+                    installation.issues.push(issue.clone());
+                    issues.push(issue);
+                }
+            }
+        }
+
         for issue in &installation.issues {
             issues.push(issue.clone());
         }
@@ -441,6 +462,27 @@ pub fn inspect_installation(
                             Some(agent_id),
                         ));
                     }
+
+                    // 检测申请的高危工具
+                    let dangerous_tools = ["bash", "sh", "cmd", "powershell", "execute_command", "run_command", "execute_bash", "terminal", "computer_control", "run_terminal_command"];
+                    let requested_dangerous: Vec<String> = parsed.allowed_tools
+                        .iter()
+                        .filter(|tool| dangerous_tools.iter().any(|&d| tool.to_lowercase().contains(d)))
+                        .cloned()
+                        .collect();
+                    if !requested_dangerous.is_empty() {
+                        issues.push(issue(
+                            "dangerous-tools-requested",
+                            "warning",
+                            &format!(
+                                "该第三方技能申请使用高危系统工具：{:?}。为安全起见，请确保此技能来源可信，并限制大模型对其的授权。",
+                                requested_dangerous
+                            ),
+                            Some(entry_path),
+                            Some(agent_id),
+                        ));
+                    }
+
                     frontmatter = Some(parsed);
                 } else {
                     issues.push(issue(
@@ -643,6 +685,89 @@ fn issue(
         path: path.map(path_to_string),
         agent_id: agent_id.map(|agent_id| agent_id.to_string()),
     }
+}
+
+fn find_skill_dirs_simple(base_path: &Path, current_path: &Path, depth: u32, results: &mut Vec<PathBuf>) {
+    if depth > 3 {
+        return;
+    }
+    if current_path.join("SKILL.md").exists() {
+        results.push(current_path.to_path_buf());
+        return;
+    }
+    let Ok(entries) = fs::read_dir(current_path) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.file_name().and_then(|n| n.to_str()).is_some_and(|name| name.starts_with('.')) {
+            continue;
+        }
+        if path.is_dir() {
+            find_skill_dirs_simple(base_path, &path, depth + 1, results);
+        }
+    }
+}
+
+fn normalize_github_url_simple(source_url: &str) -> Result<String, String> {
+    let trimmed = source_url.trim();
+    if trimmed.ends_with(".git") || trimmed.starts_with("git@") {
+        return Ok(trimmed.to_string());
+    }
+    let trimmed_clean = trimmed
+        .trim_end_matches('/')
+        .trim_end_matches(".git");
+    let path = if let Some(rest) = trimmed_clean.strip_prefix("git@github.com:") {
+        rest.to_string()
+    } else if let Some(rest) = trimmed_clean.strip_prefix("github.com/") {
+        rest.to_string()
+    } else if let Some(rest) = trimmed_clean.strip_prefix("https://github.com/") {
+        rest.to_string()
+    } else {
+        let parts: Vec<&str> = trimmed_clean.split('/').collect();
+        if parts.len() == 2 && parts.iter().all(|p| !p.is_empty()) {
+            trimmed_clean.to_string()
+        } else {
+            if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+                return Ok(trimmed.to_string());
+            }
+            return Err("Unsupported".to_string());
+        }
+    };
+    Ok(format!("https://github.com/{path}.git"))
+}
+
+fn get_remote_skill_hash(app: &AppHandle, slug: &str) -> Option<String> {
+    let settings = load_settings(app).ok()?;
+    let repos = settings.skill_repositories.unwrap_or_default();
+    let cache_repos_root = app_data_dir(app).ok()?
+        .join("cache")
+        .join("repos");
+    if !cache_repos_root.exists() {
+        return None;
+    }
+    for repo_url in repos {
+        let clone_url = match normalize_github_url_simple(&repo_url) {
+            Ok(url) => url,
+            Err(_) => repo_url.clone(),
+        };
+        let mut hasher = Sha256::new();
+        hasher.update(clone_url.as_bytes());
+        let cache_dir_name = format!("{:x}", hasher.finalize());
+        let repo_path = cache_repos_root.join(cache_dir_name);
+        if repo_path.exists() {
+            let mut candidates = Vec::new();
+            find_skill_dirs_simple(&repo_path, &repo_path, 0, &mut candidates);
+            for candidate in candidates {
+                if candidate.file_name().and_then(|n| n.to_str()) == Some(slug) {
+                    if let Ok(hash) = hash_dir(&candidate) {
+                        return Some(hash);
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -870,5 +995,24 @@ mod tests {
         assert!(grouped.keys().any(|key| key.slug == "visible-skill"));
         assert!(!grouped.keys().any(|key| key.slug == "frontend-design"));
         assert!(!grouped.keys().any(|key| key.slug == "frontend-design.bak_20260624_115229"));
+    }
+
+    #[test]
+    fn detects_dangerous_tools() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let skill = temp.path().join("evil-skill");
+        fs::create_dir_all(&skill).expect("skill dir");
+        fs::write(
+            skill.join("SKILL.md"),
+            "---\nname: evil-skill\ndescription: test\nallowed-tools:\n  - run_command\n  - some_safe_tool\n---\nBody",
+        )
+        .expect("skill md");
+
+        let installation =
+            inspect_installation("test", "Test", "global", temp.path(), &skill, temp.path());
+        assert!(installation
+            .issues
+            .iter()
+            .any(|issue| issue.code == "dangerous-tools-requested"));
     }
 }

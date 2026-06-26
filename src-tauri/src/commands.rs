@@ -203,6 +203,7 @@ pub async fn update_skills_sh_skill(
             fs_ops::remove_entry(&local_path)?;
         }
         fs_ops::copy_dir_recursive(&remote_path, &local_path)?;
+        let _ = fs_ops::set_dir_readonly(&local_path, true);
 
         Ok(SkillUpdateCheck {
             status: "current".to_string(),
@@ -309,11 +310,14 @@ fn checkout_repo(
         {
             cmd.creation_flags(0x08000000);
         }
-        let status = cmd.status()
+        let output = cmd.output()
             .map_err(|error| format!("Unable to clone {clone_url}: {error}"))?;
-        if !status.success() {
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(format!(
-                "Unable to clone {clone_url}: git exited with {status}"
+                "Unable to clone {clone_url}: git exited with {}\nError: {}",
+                output.status,
+                stderr.trim()
             ));
         }
         
@@ -347,11 +351,14 @@ fn checkout_repo(
             {
                 fetch_cmd.creation_flags(0x08000000);
             }
-            let status = fetch_cmd.status()
+            let output = fetch_cmd.output()
                 .map_err(|error| format!("Unable to fetch {clone_url}: {error}"))?;
-            if !status.success() {
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
                 return Err(format!(
-                    "Unable to fetch {clone_url}: git exited with {status}"
+                    "Unable to fetch {clone_url}: git exited with {}\nError: {}",
+                    output.status,
+                    stderr.trim()
                 ));
             }
 
@@ -362,11 +369,14 @@ fn checkout_repo(
             {
                 reset_cmd.creation_flags(0x08000000);
             }
-            let status = reset_cmd.status()
+            let output = reset_cmd.output()
                 .map_err(|error| format!("Unable to reset {clone_url}: {error}"))?;
-            if !status.success() {
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
                 return Err(format!(
-                    "Unable to reset {clone_url}: git exited with {status}"
+                    "Unable to reset {clone_url}: git exited with {}\nError: {}",
+                    output.status,
+                    stderr.trim()
                 ));
             }
         }
@@ -901,6 +911,7 @@ pub async fn install_remote_skill(
                 fs_ops::remove_entry(&library_skill_dir)?;
             }
             fs_ops::copy_dir_recursive(&source_dir, &library_skill_dir)?;
+            let _ = fs_ops::set_dir_readonly(&library_skill_dir, true);
             library_skill_dir
         } else {
             source_dir

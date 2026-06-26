@@ -696,7 +696,9 @@ pub fn apply_plan(app: &AppHandle, plan_id: String) -> Result<ApplyResult, Strin
             "copy-to-library" => {
                 let source = required_path(operation.source_path.as_deref(), operation)?;
                 let target = required_path(operation.target_path.as_deref(), operation)?;
-                copy_dir_recursive(&source, &target)
+                copy_dir_recursive(&source, &target)?;
+                let _ = crate::fs_ops::set_dir_readonly(&target, true);
+                Ok(())
             }
             "copy-to-target" => {
                 let source = required_path(operation.source_path.as_deref(), operation)?;

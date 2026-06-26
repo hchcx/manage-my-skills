@@ -439,7 +439,7 @@ export function DiscoveryView({
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
   const [installScope, setInstallScope] = useState<"global" | "project">("global");
   const [selectedProject, setSelectedProject] = useState<string>("");
-  const [installMethod, setInstallMethod] = useState<"symlink" | "copy" | "managed">("symlink");
+  const [installMethod, setInstallMethod] = useState<"symlink" | "copy" | "managed">("copy");
   const [installing, setInstalling] = useState(false);
   const [installError, setInstallError] = useState<string | null>(null);
 
@@ -764,7 +764,7 @@ export function DiscoveryView({
     setSelectedAgentIds(activeAgents);
     setInstallScope("global");
     setSelectedProject(settings.projectFolders[0] || "");
-    setInstallMethod("symlink");
+    setInstallMethod("copy");
     setInstallError(null);
     setInstalling(false);
   };
@@ -1279,20 +1279,6 @@ export function DiscoveryView({
               <div className="form-group">
                 <label className="form-label">选择分发方式</label>
                 <div className="method-selection-column">
-                  <label className={`method-option-card ${installMethod === "symlink" ? "active" : ""}`}>
-                    <input
-                      type="radio"
-                      name="installMethod"
-                      value="symlink"
-                      checked={installMethod === "symlink"}
-                      onChange={() => setInstallMethod("symlink")}
-                    />
-                    <div className="method-desc">
-                      <strong>创建软链接 (推荐)</strong>
-                      <span>直接将 Git 缓存中的技能目录通过软链接方式链接到 Agent 中。零空间占用且与 Git 自动同步更新。</span>
-                    </div>
-                  </label>
-
                   <label className={`method-option-card ${installMethod === "copy" ? "active" : ""}`}>
                     <input
                       type="radio"
@@ -1302,8 +1288,22 @@ export function DiscoveryView({
                       onChange={() => setInstallMethod("copy")}
                     />
                     <div className="method-desc">
-                      <strong>物理复制副本</strong>
+                      <strong>物理复制副本 (推荐)</strong>
                       <span>将技能目录中的文件以物理文件夹拷贝方式拷贝到 Agent 中。该副本可脱离源 Git 仓库，支持您在此基础上自行定制改写。</span>
+                    </div>
+                  </label>
+
+                  <label className={`method-option-card ${installMethod === "symlink" ? "active" : ""}`}>
+                    <input
+                      type="radio"
+                      name="installMethod"
+                      value="symlink"
+                      checked={installMethod === "symlink"}
+                      onChange={() => setInstallMethod("symlink")}
+                    />
+                    <div className="method-desc">
+                      <strong>创建软链接</strong>
+                      <span>直接将 Git 缓存中的技能目录通过软链接方式链接到 Agent 中。零空间占用且与 Git 自动同步更新。</span>
                     </div>
                   </label>
 
